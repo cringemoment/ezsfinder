@@ -24,7 +24,7 @@ if(not pargv[1] == "help"):
             value = arg[1]
             argv[commands.index(term)] = value
 
-elif(argv[1].lower() == "chance"):
+if(argv[1].lower() == "chance"):
     system("java -jar sfinder.jar percent --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
     output = open("ezsfinder.txt").read()
     print(output[output.find("success"):output.find("success") + 20].split()[2])
