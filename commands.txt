@@ -1,0 +1,20 @@
+#prerequisites
+npm install -g tetris-fumen
+npm install -g sfinder-strict-minimal
+
+#generate csv
+java -jar sfinder-fixed-180.jar path -f csv -k pattern --patterns "[ILJTO]p5,*p4" --clear 4 --drop 180 --tetfu v115@HhC8GeD8GeA8ReAgH
+
+#generate csv but for swng avg_score
+java -jar sfinder.jar path -p *p7 -t v115@9gA8IeB8CeA8DeF8DeF8NeAgH --hold avoid -split yes -f csv -k pattern -o output/path.csv
+node avg_score_dpc.js
+
+#fail queues
+java -jar sfinder.jar percent --tetfu v115@LhB8GeB8DeA8BeD8AeC8JeAgH --patterns "T,*p7" --clear 4 -td 1 -fc -1
+
+#minimals for 2nd
+py sfinder-saves.py filter -w "O" -p "*p7"
+
+#get minimals for anything
+sfinder-minimal output/path.csv
+python true_minimal.py

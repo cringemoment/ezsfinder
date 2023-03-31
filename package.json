@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "sfinder-strict-minimal": "^0.2.0",
+    "tetris-fumen": "^1.1.3"
+  }
+}
