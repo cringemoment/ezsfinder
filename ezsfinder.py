@@ -45,7 +45,7 @@ elif(argv[1].lower() == "fail_queues"):
 
 elif(argv[1].lower() == "minimals"):
     system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
-    system('py sfinder-saves.py filter -w "%s" -p "%s" > ezsfinder.txt ' % (argv[5], argv[3]))
+    system('py sfinder-saves.py filter -w "%s" -p "%s"' % (argv[5], argv[3]))
 
 elif(argv[1].lower() == "score"):
     system("java -jar sfinder.jar path -t %s -p %s --clear %s --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
