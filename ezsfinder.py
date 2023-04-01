@@ -11,6 +11,11 @@ ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; Thi
 ezsfinder.py help <command>; This gives you more specific help for specific commands.
 ezsfinder.py help queue; This gives you more information on how the queue notation works."""
 
+commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "help"]
+for i in commands:
+    f = open(i, "w")
+    f.close()
+
 pargv = argv.copy()
 if(len(argv) < 3):
     print(help)
@@ -49,7 +54,7 @@ elif(argv[1].lower() == "minimals"):
 
 elif(argv[1].lower() == "score"):
     system("java -jar sfinder.jar path -t %s -p %s --clear %s --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
-    system("node avg_score_ezsfinder.js queue=%s initialB2B=%s initialCombo=%s b2bEndBonus=%s > ezsfinder.txt" % (argv[3], argv[6], argv[7], argv[8]))
+    system("node avg_score_ezsfinderversion.js queue=%s initialB2B=%s initialCombo=%s b2bEndBonus=%s > ezsfinder.txt" % (argv[3], argv[6], argv[7], argv[8]))
     score = open("ezsfinder.txt").read().splitlines()
     printingscores = True
     for v, i in enumerate(score):
@@ -67,7 +72,7 @@ elif(argv[1].lower() == "special_minimals" or argv[1].lower() == "special-minima
         html = f.read()
     soup = BeautifulSoup(html, 'html.parser')
     fumen = soup.find('a')['href']
-    system("node glueFumens.js %s > input/field.txt" % fumen)
+    system("node glueFumens.js --fu %s > input/field.txt" % fumen)
     system("java -jar sfinder.jar cover -p %s -M %s > ezsfinder.txt" % (argv[3], argv[9]))
     system("cover-to-path.py > ezsfinder.txt")
     system("sfinder-minimal output/cover_to_path.csv> ezsfinder.txt")
