@@ -49,7 +49,7 @@ elif(argv[1].lower() == "minimals"):
 
 elif(argv[1].lower() == "score"):
     system("java -jar sfinder.jar path -t %s -p %s --clear %s --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
-    system("node avg_score_ezsfinderversion.js queue=%s initialB2B=%s initialCombo=%s b2bEndBonus=%s > ezsfinder.txt" % (argv[3], argv[6], argv[7], argv[8]))
+    system("node avg_score_ezsfinder.js queue=%s initialB2B=%s initialCombo=%s b2bEndBonus=%s > ezsfinder.txt" % (argv[3], argv[6], argv[7], argv[8]))
     score = open("ezsfinder.txt").read().splitlines()
     printingscores = True
     for v, i in enumerate(score):
