@@ -16,11 +16,6 @@ ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; Thi
 ezsfinder.py help <command>; This gives you more specific help for specific commands.
 ezsfinder.py help queue; This gives you more information on how the queue notation works."""
 
-commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "help"]
-for i in commands:
-    f = open(i, "w")
-    f.close()
-
 pargv = argv.copy()
 if(len(argv) < 3):
     print(help)
