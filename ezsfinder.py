@@ -1,5 +1,10 @@
 from sys import argv
 from os import system
+
+system("pip install beautifulsoup4")
+system("npm install -g sfinder-minimal")
+system("npm install tetris-fumen")
+
 from bs4 import BeautifulSoup
 
 help = """The options are:
