@@ -1,9 +1,10 @@
 from sys import argv
 from os import system
 
-system("pip install beautifulsoup4")
-system("npm install -g sfinder-minimal")
-system("npm install tetris-fumen")
+system("pip install beautifulsoup4 > ezsfinder.txt")
+system("npm install -g sfinder-strict-minimal > ezsfinder.txt")
+system("npm install tetris-fumen > ezsfinder.txt")
+system("npm install yargs")
 
 from bs4 import BeautifulSoup
 
@@ -15,6 +16,11 @@ ezsfinder.py score <fumen> <queue> <clear=4> <initial_b2b=false> <initial_combo=
 ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; This gets you minimal sets for t-spin and tetris solves.
 ezsfinder.py help <command>; This gives you more specific help for specific commands.
 ezsfinder.py help queue; This gives you more information on how the queue notation works."""
+
+commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "help"]
+for i in commands:
+    f = open(i, "w")
+    f.close()
 
 pargv = argv.copy()
 if(len(argv) < 3):
