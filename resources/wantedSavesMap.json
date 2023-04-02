@@ -4,5 +4,6 @@
     "7th TLJ Replace": ["TT||/TI?[LJ]{3}S?Z?O?/#T>X or L/J>[ISZO]", "TT#T>X", "TTILJSZ#T>O", "/TTILJ[SZ]O/#T>S/Z", "TTLJSZO#T>I", "/TTI[LJ]SZO/#T>L/J", "/TI?[LJ]{3}S?Z?O?/#L/J>[ISZO]", "/T[LJ]{3}/#L/J>I", "/TI[LJ]{3}[SZ]O/#L/J>S/Z", "/TI[LJ]{3}SZ/#L/J>O"],
     "2nd Saves": ["T||O#T or O", "T", "O"],
     "1st Saves": ["/T[^T]/#one T", "/[LJ]{2}/#two L/J", "/T[^T]/||/[LJ]{2}/#one T or two L/J"],
-    "1st Avoid Bad": ["^/^[^TLJ]*[LJ][^LJ]*$/#avoid no T one L/J"]
+    "1st Avoid Bad": ["^/^[^TLJ]*[LJ][^LJ]*$/#avoid no T one L/J"],
+    "2nd alge Saves": ["T", "O", "I", "L", "J", "S", "Z", "T||O#T/O", "T||O||I#T/O/I", "T||O||I||L||J#No SZ"]
 }
