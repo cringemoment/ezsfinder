@@ -103,7 +103,7 @@ tetris: Looks for tetris anywhere in the solve
 tetris-end: Looks for the last 4 lines cleared being a tetris
 """)
     else:
-    print("Either this isnt a command or i havent implemented it yet. if you are sure you didnt typo tell me to add the help command")
+        print("Either this isnt a command or i havent implemented it yet. if you are sure you didnt typo tell me to add the help command")
 
 else:
     print(help)
