@@ -13,21 +13,18 @@ for i in commands:
     f = open(i, "w")
     f.close()
 
-if(len(argv) < 3):
-    help(False)
-    raise SystemExit(0)
-
-def help():
+def ezhelp():
     if(len(argv) < 3):
         defaulthelp = """The options are:
-        ezsfinder.py chance <fumen> <queue> <clear=4>; This spits out the chance to solve this.
-        ezsfinder.py fail_queues <fumen> <queue> <clear=4>; This spits out all the fail queues.
-        ezsfinder.py minimals <fumen> <queue> <clear=4> <saves=all of them>; This spits out a tinyurl for the minimals. Saves is by default not considered.
-        ezsfinder.py score <fumen> <queue> <clear=4> <initial_b2b=false> <initial_combo=0> <b2b_bonus=0>; This gives you information and the average score for the setup.
-        ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; This gets you minimal sets for t-spin and tetris solves.
-        ezsfinder.py second_stats <fumen> <queue> <clear=4>; This prints out the standard set of statistics for 2nd.
-        ezsfinder.py setup_stats <fumen> <queue> <clear=4> <fill=I> <margin=O> <exclude=none> <second_queue>; This runs setup on a setup, and then runs cover on each of those.
-        ezsfinder.py help <command or parameter>; This gives you more specific help for a command or parameter. eg ezsfinder.py help chance or ezsfinder.py help queue"""
+ezsfinder.py chance <fumen> <queue> <clear=4>; This spits out the chance to solve this.
+ezsfinder.py fail_queues <fumen> <queue> <clear=4>; This spits out all the fail queues.
+ezsfinder.py minimals <fumen> <queue> <clear=4> <saves=all of them>; This spits out a tinyurl for the minimals. Saves is by default not considered.
+ezsfinder.py score <fumen> <queue> <clear=4> <initial_b2b=false> <initial_combo=0> <b2b_bonus=0>; This gives you information and the average score for the setup.
+ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; This gets you minimal sets for t-spin and tetris solves.
+ezsfinder.py second_stats <fumen> <queue> <clear=4>; This prints out the standard set of statistics for 2nd.
+ezsfinder.py setup_stats <fumen> <queue> <clear=4> <fill=I> <margin=O> <exclude=none> <second_queue=>; This runs setup on a setup, and then runs cover on each of those.
+ezsfinder.py all_setups <queue=> <max_setup_height=4> <fill=I> <margin=O> <exclude=none> <second_queue=> <pieces_used=3>; This will take a queue and find every setup for it, and then check the pc chance and cover. Useful for bruteforcing pc setups.
+ezsfinder.py help <command or parameter>; This gives you more specific help for a command or parameter. eg ezsfinder.py help chance or ezsfinder.py help queue"""
         print(defaulthelp)
         return False
 
@@ -49,10 +46,10 @@ tst: This includes only tst
 tetris: Looks for tetris anywhere in the solve
 tetris-end: Looks for the last 4 lines cleared being a tetris""",
     "minimals" : """This uses Marfung's sfinder-saves.py to generate the minimals + saves, so use that notation.
-    For example, if you wanted to find save O solutions, you would put O.
-    If you wanted to find save T or O solutions, you would seperate it with ||, so T||O.""",
+For example, if you wanted to find save O solutions, you would put O.
+If you wanted to find save T or O solutions, you would seperate it with ||, so T||O.""",
     "fumen" : """A fumen, or a tetfu, is how Tetris boards are shared. You can make them at https://harddrop.com/fumen/ or https://fumen.zui.jp/.
-    When you draw a board and then hit output data, you get a long encoded string, which represents the board and any comments. You can then use this to send tetris boards through text."""
+When you draw a board and then hit output data, you get a long encoded string, which represents the board and any comments. You can then use this to send tetris boards through text."""
     }
 
     if(not arg in helpcommands):
@@ -60,7 +57,13 @@ tetris-end: Looks for the last 4 lines cleared being a tetris""",
         return False
     print(helpcommands[arg])
     return True
+
+if(len(argv) < 3):
+    ezhelp()
+    raise SystemExit(0)
+
 pargv = argv.copy()
+pargv = [argv[i] if i < len(argv) else "s=s" for i in range(len(pargv))]
 
 if(not argv[1] == "help"):
     parameters = [
@@ -68,16 +71,18 @@ if(not argv[1] == "help"):
     ["command", pargv[1]],
     ["fumen", "t", "tetfu", pargv[2]],
     ["queue", "p", pargv[3]],
-    ["clear", "c", 4],
+    ["clear", "c", 4    ],
     ['saves', 'I||O||J||L||T||S||Z'],
     ['initial_b2b', "i_b2b", 'false'],
-    ['initial_combo', 0],
+    ['initial_combo', "i_cb", 0],
     ['b2b_bonus', 0],
     ['minimal_type', 'tss'],
     ['fill', 'I'],
     ['margin', 'O'],
     ['exclude', 'none'],
-    ['second_queue', 0]
+    ['second_queue', 0],
+    ['pieces_used', 3],
+    ["max_setup_height", -1]
     ]
 
     argv = [i[1] for i in parameters.copy()]
@@ -85,15 +90,14 @@ if(not argv[1] == "help"):
 
     for i in parameters[2:]:
         exec("%s='%s'" % (i[0], i[-1]))
+
     for i in pargv:
         if("=" in i):
             exec("%s='%s'" % (i.split("=")[0], i.split("=")[1]))
             for commandpair in parameters:
                 for command in commandpair:
-                    if(i.split("=")[1] == command):
-
+                    if(i.split("=")[0] == command):
                         exec("%s='%s'" % (commandpair[0], i.split("=")[1]))
-
 
 def chance():
     system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} --clear {clear} > ezsfinder.txt")
@@ -147,7 +151,7 @@ def second_stats():
     system('py sfinder-saves.py percent -k "2nd alge Saves" -pc 2')
 
 def setup_stats():
-    system(f"java -jar sfinder.jar setup --tetfu {fumen} -p {queue} --fill {fill} --margin {margin} -fo csv -e {exclude} --split yes > ezsfinder.txt")
+    system(f"java -jar sfinder.jar setup --tetfu {fumen} -p {queue} --fill {fill} --margin {margin} -fo csv -e {exclude} --line {max_setup_height} --split yes > ezsfinder.txt")
     fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open("output/setup.csv").read().splitlines()[1:]]
     allfumens = ""
     for indfumen in fumens:
@@ -175,6 +179,22 @@ def setup_stats():
 
 def all_setups():
     for i in range(1, 11):
-        system(f"java -jar sfinder.jar setup -H use -t v115@9gtpwhYpJeAglbhglgWReAAechglgWQeAAedhglgWP?eAAeehglgWOeAAefhglgWNeAAeghglgWMeAAehhglgWLeAA?eihglgWKeAAejhglgWJeAAe -f I -m O -l 4 -e none -np 3 -fo csv -o {i}.txt -P {i} -p {queue}")
+        system(f"java -jar sfinder.jar setup -H use -t v115@9gtpwhYpJeAglbhglgWReAAechglgWQeAAedhglgWP?eAAeehglgWOeAAefhglgWNeAAeghglgWMeAAehhglgWLeAA?eihglgWKeAAejhglgWJeAAe -f {fill} -m {margin} --line 4 -np {pieces_used} -fo csv -o output/{i} --page {i} -p {queue} --split yes > ezsfinder.txt")
+        fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open(f"output/{i}.csv").read().splitlines()[1:]]
+        allfumens = ""
+        for indfumen in fumens:
+            allfumens += indfumen + " "
+            system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} > ezsfinder.txt")
+            coveredfumen = open("ezsfinder.txt").read().splitlines()
+            for line in coveredfumen:
+                if("OR") in line:
+                    fumencoverage = line.split("OR  = ")[1]
+                    print(f"{indfumen} has {fumencoverage} coverage", end="")
+                    system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
+                    unglued = open("ezsfinder.txt").read()[:-1]
+                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} > ezsfinder.txt")
+                    output = open("ezsfinder.txt").read()
+                    print(f", and a pc chance of {output[output.find('success'):output.find('success') + 20].split()[2]}", end = "")
+                    print("")
 
 exec(f"{argv[1]}()")
