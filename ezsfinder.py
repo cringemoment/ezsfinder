@@ -1,44 +1,87 @@
 from sys import argv
-from os import system
+from os import system as ossystem
 from bs4 import BeautifulSoup
 
-help = """The options are:
-ezsfinder.py chance <fumen> <queue> <clear=4>; This spits out the chance to solve this.
-ezsfinder.py fail_queues <fumen> <queue> <clear=4>; This spits out all the fail queues.
-ezsfinder.py minimals <fumen> <queue> <clear=4> <saves=all of them>; This spits out a tinyurl for the minimals. Saves is by default not considered.
-ezsfinder.py score <fumen> <queue> <clear=4> <initial_b2b=false> <initial_combo=0> <b2b_bonus=0>; This gives you information and the average score for the setup.
-ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; This gets you minimal sets for t-spin and tetris solves.
-ezsfinder.py second_stats <fumen> <queue> <clear=4>; This prints out the standard set of statistics for 2nd.
-ezsfinder.py help <command>; This gives you more specific help for specific commands.
-ezsfinder.py help queue; This gives you more information on how the queue notation works."""
+debug = False
+def system(command):
+    if(debug):
+        print(command)
+    ossystem(command)
 
-commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "help"]
+commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "second_stats", "setup_stats", "all_setups", "help"]
 for i in commands:
     f = open(i, "w")
     f.close()
 
-pargv = argv.copy()
 if(len(argv) < 3):
-    print(help)
+    help(False)
     raise SystemExit(0)
 
-if(not pargv[1] == "help"):
-    argv = [pargv[0], pargv[1], pargv[2], pargv[3], 4, "I||O||J||L||T||S||Z", "false", 0, 0, "tss"]
-    commands = [0, 0, 0, 0, "clear", "saves", "initial_b2b", "initial_combo", "b2b_bonus", "minimal_type"]
+def help():
+    if(len(argv) < 3):
+        defaulthelp = """The options are:
+        ezsfinder.py chance <fumen> <queue> <clear=4>; This spits out the chance to solve this.
+        ezsfinder.py fail_queues <fumen> <queue> <clear=4>; This spits out all the fail queues.
+        ezsfinder.py minimals <fumen> <queue> <clear=4> <saves=all of them>; This spits out a tinyurl for the minimals. Saves is by default not considered.
+        ezsfinder.py score <fumen> <queue> <clear=4> <initial_b2b=false> <initial_combo=0> <b2b_bonus=0>; This gives you information and the average score for the setup.
+        ezsfinder.py special_minimals <fumen> <queue> <clear=4> <saves=all of them>; This gets you minimal sets for t-spin and tetris solves.
+        ezsfinder.py second_stats <fumen> <queue> <clear=4>; This prints out the standard set of statistics for 2nd.
+        ezsfinder.py setup_stats <fumen> <queue> <clear=4> <fill=I> <margin=O> <exclude=none> <second_queue>; This runs setup on a setup, and then runs cover on each of those.
+        ezsfinder.py help <command or parameter>; This gives you more specific help for a command or parameter. eg ezsfinder.py help chance or ezsfinder.py help queue"""
+        print(defaulthelp)
+        return False
+
+    arg = argv[2]
+    helpcommand = arg.lower()
+    helpcommands = {
+    "chance" : """This uses sfinder's percent command to calculate the score.The command structure is sfinder chance <fumen> <queue>.
+An example command is:
+ezsfinder chance v115@9gA8IeB8CeA8DeF8DeF8NeAgH *p7. (Outputs 99.76%)""",
+    "queue" : """The standard queue notation is designed to simulate Tetris' bag system.
+When you see the square brackets, it indicates a bag. [SZ] stands for a bag, composing of an S and a Z piece. * Stands in for a full bag of all the pieces, or [IOSZJLT].
+When you see a p and then a number next to it, it indicates how many bags to draw out of that queue. [JLT]p2 indicates to draw 2 pieces out of the bag. This is fed into the program as all ways to draw 2 pieces out of the bag [JLT], so the program would get:
+JL,JT,LT.""" ,
+    "special_minimals" : """This hooks together like 5 different programs to get the minimals. Your options for minimal_type are the same as sfinder's cover --mode parameters, which are:
+tsm: This includes all tspins
+tss: This includes tss and up
+tsd: This includes all tsd and up
+tst: This includes only tst
+tetris: Looks for tetris anywhere in the solve
+tetris-end: Looks for the last 4 lines cleared being a tetris""",
+    "minimals" : """This uses Marfung's sfinder-saves.py to generate the minimals + saves, so use that notation.
+    For example, if you wanted to find save O solutions, you would put O.
+    If you wanted to find save T or O solutions, you would seperate it with ||, so T||O.""",
+    "fumen" : """A fumen, or a tetfu, is how Tetris boards are shared. You can make them at https://harddrop.com/fumen/ or https://fumen.zui.jp/.
+    When you draw a board and then hit output data, you get a long encoded string, which represents the board and any comments. You can then use this to send tetris boards through text."""
+    }
+
+    if(not arg in helpcommands):
+        print("Woops, looks like something went wrong. Either I haven't added a help for this yet, so annoy me till I do, or you've typoed, in which case shame on you.")
+        return False
+    print(helpcommands[arg])
+    return True
+pargv = argv.copy()
+
+if(not argv[1] == "help"):
+    parameters = [["ezsfinder", pargv[0]], ["command", pargv[1]], ["fumen", pargv[2]], ["queue", pargv[3]], ['clear', 4], ['saves', 'I||O||J||L||T||S||Z'], ['initial_b2b', 'false'], ['initial_combo', 0], ['b2b_bonus', 0], ['minimal_type', 'tss'], ['fill', 'I'], ['margin', 'O'], ['exclude', 'none'], ['second_queue', 0]]
+
+    argv = [i[1] for i in parameters.copy()]
+    terms = [i[0] for i in parameters.copy()]
+
+    for i in parameters[2:]:
+        exec("%s='%s'" % (i[0], i[1]))
+
     for i in pargv:
         if("=" in i):
-            arg = i.split("=")
-            term = arg[0]
-            value = arg[1]
-            argv[commands.index(term)] = value
+            exec("%s='%s'" % (i.split("=")[0], i.split("=")[1]))
 
-if(argv[1].lower() == "chance"):
-    system("java -jar sfinder.jar percent --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
+def chance():
+    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} --clear {clear} > ezsfinder.txt")
     output = open("ezsfinder.txt").read()
     print(output[output.find("success"):output.find("success") + 20].split()[2])
 
-elif(argv[1].lower() == "fail_queues"):
-    system("java -jar sfinder.jar percent --tetfu %s --patterns %s -fc -1 --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
+def fail_queues():
+    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} -fc -1 --clear {clear} > ezsfinder.txt")
     output = open("ezsfinder.txt").read().splitlines()
     doprint = False
     for i in output:
@@ -49,13 +92,13 @@ elif(argv[1].lower() == "fail_queues"):
         if("Fail pattern" in i):
             doprint = True
 
-elif(argv[1].lower() == "minimals"):
-    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
-    system('py sfinder-saves.py filter -w "%s" -p "%s"' % (argv[5], argv[3]))
+def minimals():
+    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
+    system('py sfinder-saves.py filter -w "%s" -p "%s"' % (saves, queue))
 
-elif(argv[1].lower() == "score"):
-    system("java -jar sfinder.jar path -t %s -p %s --clear %s --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
-    system("node avg_score_ezsfinderversion.js queue=%s initialB2B=%s initialCombo=%s b2bEndBonus=%s > ezsfinder.txt" % (argv[3], argv[6], argv[7], argv[8]))
+def score():
+    system(f"java -jar sfinder.jar path -t {fumen} -p {queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt")
+    system(f"node avg_score_ezsfinderversion.js queue={queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_bonus} > ezsfinder.txt")
     score = open("ezsfinder.txt").read().splitlines()
     printingscores = True
     for v, i in enumerate(score):
@@ -64,47 +107,55 @@ elif(argv[1].lower() == "score"):
         if(printingscores):
             print("There are %s queues that allow you to get %s" % (i.split(": ")[1], i.split(": ")[0]))
         if("average_covered_score" in i):
+            print(i)
             print("On average, when the setup has a perfect clear, you would score %s points."% round(float(i.split(": ")[1][:-1]), 2))
-            print("Factoring in pc chance, the average score is %s" % round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2))
+            print("Factoring in pc chance (%s%%), the average score is %s" % (int(score[v + 1].split(": ")[1][:-1]) / int(score[-1]) * 100, round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2)))
 
-elif(argv[1].lower() == "special_minimals" or argv[1].lower() == "special-minimals"):
-    system("java -jar sfinder.jar path -t %s -p %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
+def special_minimals():
+    system("java -jar sfinder.jar path -t %s -p %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
     with open('output/path_unique.html', encoding = "utf-8") as f:
         html = f.read()
     soup = BeautifulSoup(html, 'html.parser')
-    fumen = soup.find('a')['href']
-    system("node glueFumens.js --fu %s > input/field.txt" % fumen)
-    system("java -jar sfinder.jar cover -p %s -M %s > ezsfinder.txt" % (argv[3], argv[9]))
+    allfumen = soup.find('a')['href']
+    system(f"node glueFumens.js --fu {allfumen} > input/field.txt")
+    system("java -jar sfinder.jar cover -p %s -M %s > ezsfinder.txt" % (queue, fill))
     system("cover-to-path.py > ezsfinder.txt")
     system("sfinder-minimal output/cover_to_path.csv> ezsfinder.txt")
     system("true_minimal.py")
 
-elif(argv[1].lower() == "second_stats"):
-    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (argv[2], argv[3], argv[4]))
+def second_stats():
+    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
     system('py sfinder-saves.py percent -k "2nd alge Saves" -pc 2')
 
-elif(argv[1].lower() == "help"):
-    if(argv[2].lower() == "chance"):
-        print("""This uses sfinder's percent command to calculate the score.The command structure is sfinder chance <fumen> <queue>.
-An example command is:
-ezsfinder chance v115@9gA8IeB8CeA8DeF8DeF8NeAgH *p7. (Outputs 99.76%)""")
-    elif(argv[2].lower() == "queue"):
-        print("""The standard queue notation is designed to simulate Tetris' bag system.
-When you see the square brackets, it indicates a bag. [SZ] stands for a bag, composing of an S and a Z piece. * Stands in for a full bag of all the pieces, or [IOSZJLT].
-When you see a p and then a number next to it, it indicates how many bags to draw out of that queue. [JLT]p2 indicates to draw 2 pieces out of the bag. This is fed into the program as all ways to draw 2 pieces out of the bag [JLT], so the program would get:
-JL,JT,LT.""")
-    elif(argv[2].lower() == "special-minimals"):
-        print("""This hooks together like 5 different programs to get the minimals. Your options for minimal_type are the same as sfinder's cover --mode parameters, which are:
-tsm: This includes all tspins
-tss: This includes tss and up
-tsd: This includes all tsd and up
-tst: This includes only tst
-tetris: Looks for tetris anywhere in the solve
-tetris-end: Looks for the last 4 lines cleared being a tetris
-""")
-    else:
-        print("Either this isnt a command or i havent implemented it yet. if you are sure you didnt typo tell me to add the help command")
+def setup_stats():
+    system(f"java -jar sfinder.jar setup --tetfu {fumen} -p {queue} --fill {fill} --margin {margin} -fo csv -e {exclude} --split yes > ezsfinder.txt")
+    fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open("output/setup.csv").read().splitlines()[1:]]
+    allfumens = ""
+    for indfumen in fumens:
+        allfumens += indfumen + " "
+        system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} > ezsfinder.txt")
+        coveredfumen = open("ezsfinder.txt").read().splitlines()
+        for line in coveredfumen:
+            if("OR") in line:
+                fumencoverage = line.split("OR  = ")[1]
+                print(f"{indfumen} has {fumencoverage} coverage", end="")
+                if(second_queue):
+                    system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
+                    unglued = open("ezsfinder.txt").read()[:-1]
+                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} > ezsfinder.txt")
+                    output = open("ezsfinder.txt").read()
+                    print(f", and a pc chance of {output[output.find('success'):output.find('success') + 20].split()[2]}", end = "")
+                print("")
 
-else:
-    print(help)
-    raise SystemExit(0)
+    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt > ezsfinder.txt")
+    coveredfumens = open("ezsfinder.txt").read().splitlines()
+    for line in coveredfumens:
+        if("OR") in line:
+            fumencoverage = line.split("OR  = ")[1]
+            print(f"Combined, they have {fumencoverage} coverage")
+
+def all_setups():
+    for i in range(1, 11):
+        system(f"java -jar sfinder.jar setup -H use -t v115@9gtpwhYpJeAglbhglgWReAAechglgWQeAAedhglgWP?eAAeehglgWOeAAefhglgWNeAAeghglgWMeAAehhglgWLeAA?eihglgWKeAAejhglgWJeAAe -f I -m O -l 4 -e none -np 3 -fo csv -o {i}.txt -P {i} -p {queue}")
+
+exec(f"{argv[1]}()")
