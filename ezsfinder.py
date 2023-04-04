@@ -63,17 +63,37 @@ tetris-end: Looks for the last 4 lines cleared being a tetris""",
 pargv = argv.copy()
 
 if(not argv[1] == "help"):
-    parameters = [["ezsfinder", pargv[0]], ["command", pargv[1]], ["fumen", pargv[2]], ["queue", pargv[3]], ['clear', 4], ['saves', 'I||O||J||L||T||S||Z'], ['initial_b2b', 'false'], ['initial_combo', 0], ['b2b_bonus', 0], ['minimal_type', 'tss'], ['fill', 'I'], ['margin', 'O'], ['exclude', 'none'], ['second_queue', 0]]
+    parameters = [
+    ["ezsfinder", pargv[0]],
+    ["command", pargv[1]],
+    ["fumen", "t", "tetfu", pargv[2]],
+    ["queue", "p", pargv[3]],
+    ["clear", "c", 4],
+    ['saves', 'I||O||J||L||T||S||Z'],
+    ['initial_b2b', "i_b2b", 'false'],
+    ['initial_combo', 0],
+    ['b2b_bonus', 0],
+    ['minimal_type', 'tss'],
+    ['fill', 'I'],
+    ['margin', 'O'],
+    ['exclude', 'none'],
+    ['second_queue', 0]
+    ]
 
     argv = [i[1] for i in parameters.copy()]
     terms = [i[0] for i in parameters.copy()]
 
     for i in parameters[2:]:
-        exec("%s='%s'" % (i[0], i[1]))
-
+        exec("%s='%s'" % (i[0], i[-1]))
     for i in pargv:
         if("=" in i):
             exec("%s='%s'" % (i.split("=")[0], i.split("=")[1]))
+            for commandpair in parameters:
+                for command in commandpair:
+                    if(i.split("=")[1] == command):
+
+                        exec("%s='%s'" % (commandpair[0], i.split("=")[1]))
+
 
 def chance():
     system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} --clear {clear} > ezsfinder.txt")
@@ -107,7 +127,6 @@ def score():
         if(printingscores):
             print("There are %s queues that allow you to get %s" % (i.split(": ")[1], i.split(": ")[0]))
         if("average_covered_score" in i):
-            print(i)
             print("On average, when the setup has a perfect clear, you would score %s points."% round(float(i.split(": ")[1][:-1]), 2))
             print("Factoring in pc chance (%s%%), the average score is %s" % (int(score[v + 1].split(": ")[1][:-1]) / int(score[-1]) * 100, round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2)))
 
