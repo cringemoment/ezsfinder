@@ -13,6 +13,16 @@ for i in commands:
     f = open(i, "w")
     f.close()
 
+dpcscores = {
+  "O": 4726.38,
+  "I": 4495.70,
+  "S": 4454.71,
+  "Z": 4454.71,
+  "L": 4255.94,
+  "J": 4255.94,
+  "T": 4135.55
+}
+
 def ezhelp():
     if(len(argv) < 3):
         defaulthelp = """The options are:
@@ -71,7 +81,7 @@ if(not argv[1] == "help"):
     ["command", pargv[1]],
     ["fumen", "t", "tetfu", pargv[2]],
     ["queue", "p", pargv[3]],
-    ["clear", "c", 4    ],
+    ["clear", "c", 4],
     ['saves', 'I||O||J||L||T||S||Z'],
     ['initial_b2b', "i_b2b", 'false'],
     ['initial_combo', "i_cb", 0],
@@ -80,9 +90,9 @@ if(not argv[1] == "help"):
     ['fill', 'I'],
     ['margin', 'O'],
     ['exclude', 'none'],
-    ['second_queue', 0],
+    ['second_queue', False],
     ['pieces_used', 3],
-    ["max_setup_height", -1]
+    ["cover_fumens", False]
     ]
 
     argv = [i[1] for i in parameters.copy()]
@@ -133,6 +143,11 @@ def score():
         if("average_covered_score" in i):
             print("On average, when the setup has a perfect clear, you would score %s points."% round(float(i.split(": ")[1][:-1]), 2))
             print("Factoring in pc chance (%s%%), the average score is %s" % (int(score[v + 1].split(": ")[1][:-1]) / int(score[-1]) * 100, round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2)))
+    #system(f"java -jar sfinder.jar path -f csv -k pattern --tetfu {fumen} --patterns {queue} --clear {clear} > ezsfinder.txt")
+    #system('py sfinder-saves.py percent -k "2nd Saves" -pc 2 > ezsfinder.txt')
+    #saves = [i.split() for i in open("ezsfinder.txt").read().splitlines()]
+    #savechances = [float(i[1][:-1])/100 for i in saves]
+    #print(savechances)
 
 def special_minimals():
     system("java -jar sfinder.jar path -t %s -p %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
@@ -151,8 +166,18 @@ def second_stats():
     system('py sfinder-saves.py percent -k "2nd alge Saves" -pc 2')
 
 def setup_stats():
-    system(f"java -jar sfinder.jar setup --tetfu {fumen} -p {queue} --fill {fill} --margin {margin} -fo csv -e {exclude} --line {max_setup_height} --split yes > ezsfinder.txt")
-    fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open("output/setup.csv").read().splitlines()[1:]]
+    if(cover_fumens == "False"):
+        system(f"java -jar sfinder.jar setup --fill {fill} --margin {margin} -fo csv -e {exclude} --tetfu {fumen} -p {queue} > ezsfinder.txt --split yes")
+        fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open("output/setup.csv").read().splitlines()[1:]]
+
+    else:
+        fumens = cover_fumens.split()
+        for v, i in enumerate(fumens):
+            system(f"node glueFumens.js --fu {i} > ezsfinder.txt")
+            fumens[v] = open("ezsfinder.txt").read()[:-1]
+
+    covers = []
+    fumenandscores = []
     allfumens = ""
     for indfumen in fumens:
         allfumens += indfumen + " "
@@ -167,7 +192,18 @@ def setup_stats():
                     unglued = open("ezsfinder.txt").read()[:-1]
                     system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} > ezsfinder.txt")
                     output = open("ezsfinder.txt").read()
-                    print(f", and a pc chance of {output[output.find('success'):output.find('success') + 20].split()[2]}", end = "")
+                    ungluedchance = output[output.find('success'):output.find('success') + 20].split()[2]
+                    print(f", and a pc chance of {ungluedchance}")
+                    ungluedchance = float(ungluedchance[:-1])/100
+                    system(f"java -jar sfinder.jar path -t {unglued} -p {second_queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt")
+                    system(f"node avg_score_ezsfinderversion.js queue={second_queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_bonus} > ezsfinder.txt")
+                    score = open("ezsfinder.txt").read().splitlines()
+                    printingscores = True
+                    for v, i in enumerate(score):
+                        if("average_covered_score" in i):
+                            score = int(score[v + 1].split(": ")[1][:-1]) / int(score[-1]) * 100, round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2)
+                            print("Factoring in pc chance (%s%%), the average score is %s" % score, end = "")
+                    fumenandscores.append([unglued, list(score)[1]])
                 print("")
 
     system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt > ezsfinder.txt")
@@ -176,6 +212,29 @@ def setup_stats():
         if("OR") in line:
             fumencoverage = line.split("OR  = ")[1]
             print(f"Combined, they have {fumencoverage} coverage")
+
+    useable = [0 for i in range(len(fumenandscores))]
+    nocover = 0
+    slist = fumenandscores.copy()
+    slist.sort(key=lambda x: int(x[1]) * -1)
+    scoreindex = [fumenandscores.index(i) for i in slist]
+    allcover = [i.split(",")[1:] for i in open("output/cover.csv").read().splitlines()[1:]]
+    for covervalue in allcover:
+        for coverindex in scoreindex:
+            if(covervalue[coverindex] == "O"):
+                useable[coverindex] += 1
+                break
+        else:
+            nocover += 1
+
+    totalaveragescore = 0
+    print("For max score:")
+    for useableindex, useablecount in enumerate(useable):
+        averagescore = float(fumenandscores[scoreindex[useableindex]][1] * useablecount / (sum(useable) + nocover))
+        print(f"{fumenandscores[scoreindex[useableindex]][0]} is used {useablecount} of the time, and adds %s to the average score" % averagescore)
+        totalaveragescore += averagescore
+    print(f"The average score of this setup is {totalaveragescore}")
+
 
 def all_setups():
     for i in range(1, 11):
