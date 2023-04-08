@@ -93,7 +93,8 @@ if(not argv[1] == "help"):
     ['second_queue', False],
     ['pieces_used', 3],
     ["cover_fumens", False],
-    ["kicktable", "kicks/jstris180.properties"]
+    ["kicktable", "kicks/jstris180.properties"],
+    ["mode", "normal"]
     ]
 
     argv = [i[1] for i in parameters.copy()]
@@ -182,7 +183,7 @@ def setup_stats():
     allfumens = ""
     for indfumen in fumens:
         allfumens += indfumen + " "
-        system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
+        system(f"java -jar sfinder.jar cover --hold use -t {indfumen} -p {queue} -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
         coveredfumen = open("ezsfinder.txt").read().splitlines()
         for line in coveredfumen:
             if("OR") in line:
@@ -207,7 +208,7 @@ def setup_stats():
                     fumenandscores.append([unglued, list(score)[1]])
                 print("")
 
-    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
+    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
     coveredfumens = open("ezsfinder.txt").read().splitlines()
     for line in coveredfumens:
         if("OR") in line:
