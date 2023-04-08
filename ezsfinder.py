@@ -190,13 +190,8 @@ def setup_stats():
                 fumencoverage = line.split("OR  = ")[1]
                 system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
                 unglued = open("ezsfinder.txt").read()[:-1]
-                print(f"{unglued} has {fumencoverage} coverage", end="")
+                print(f"{unglued} has {fumencoverage} coverage." )
                 if(second_queue):
-                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
-                    output = open("ezsfinder.txt").read()
-                    ungluedchance = output[output.find('success'):output.find('success') + 20].split()[2]
-                    print(f", and a pc chance of {ungluedchance}")
-                    ungluedchance = float(ungluedchance[:-1])/100
                     system(f"java -jar sfinder.jar path -t {unglued} -p {second_queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
                     system(f"node avg_score_ezsfinderversion.js queue={second_queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_bonus} > ezsfinder.txt")
                     score = open("ezsfinder.txt").read().splitlines()
@@ -237,7 +232,7 @@ def setup_stats():
         currentfumen = fumenandscores[useableindex]
         fumenscore = currentfumen[1]
         averagescore = fumenscore * useablecount / queuelength
-        print(f"{fumenandscores[useableindex][0]} is used {useablecount} of the time, and adds {averagescore} to the average score")
+        print(f"{fumenandscores[useableindex][0]} is used {useablecount}/{queuelength}({useablecount/queuelength}) of the time, and adds {averagescore} to the average score")
         totalaveragescore += averagescore
     print(f"The average score of this setup is {totalaveragescore}")
 
