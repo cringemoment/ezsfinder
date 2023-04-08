@@ -92,7 +92,8 @@ if(not argv[1] == "help"):
     ['exclude', 'none'],
     ['second_queue', False],
     ['pieces_used', 3],
-    ["cover_fumens", False]
+    ["cover_fumens", False],
+    ["kicktable", "kicks/jstris180.properties"]
     ]
 
     argv = [i[1] for i in parameters.copy()]
@@ -110,12 +111,12 @@ if(not argv[1] == "help"):
                         exec("%s='%s'" % (commandpair[0], i.split("=")[1]))
 
 def chance():
-    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} --clear {clear} > ezsfinder.txt")
+    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
     output = open("ezsfinder.txt").read()
     print(output[output.find("success"):output.find("success") + 20].split()[2])
 
 def fail_queues():
-    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} -fc -1 --clear {clear} > ezsfinder.txt")
+    system(f"java -jar sfinder.jar percent --tetfu {fumen} --patterns {queue} -fc -1 --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
     output = open("ezsfinder.txt").read().splitlines()
     doprint = False
     for i in output:
@@ -127,11 +128,11 @@ def fail_queues():
             doprint = True
 
 def minimals():
-    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
+    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s -K kicks/jstris180.properties -d 180> ezsfinder.txt" % (fumen, queue, clear))
     system('py sfinder-saves.py filter -w "%s" -p "%s"' % (saves, queue))
 
 def score():
-    system(f"java -jar sfinder.jar path -t {fumen} -p {queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt")
+    system(f"java -jar sfinder.jar path -t {fumen} -p {queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
     system(f"node avg_score_ezsfinderversion.js queue={queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_bonus} > ezsfinder.txt")
     score = open("ezsfinder.txt").read().splitlines()
     printingscores = True
@@ -150,24 +151,24 @@ def score():
     #print(savechances)
 
 def special_minimals():
-    system("java -jar sfinder.jar path -t %s -p %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
+    system("java -jar sfinder.jar path -t %s -p %s --clear %s -K kicks/jstris180.properties -d 180> ezsfinder.txt" % (fumen, queue, clear))
     with open('output/path_unique.html', encoding = "utf-8") as f:
         html = f.read()
     soup = BeautifulSoup(html, 'html.parser')
     allfumen = soup.find('a')['href']
     system(f"node glueFumens.js --fu {allfumen} > input/field.txt")
-    system("java -jar sfinder.jar cover -p %s -M %s > ezsfinder.txt" % (queue, fill))
+    system(f"java -jar sfinder.jar cover -p {queue} -M {minimal_type} -K kicks/jstris180.properties -d 180> ezsfinder.txt")
     system("cover-to-path.py > ezsfinder.txt")
     system("sfinder-minimal output/cover_to_path.csv> ezsfinder.txt")
     system("true_minimal.py")
 
 def second_stats():
-    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s > ezsfinder.txt" % (fumen, queue, clear))
+    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s -K kicks/jstris180.properties -d 180 > ezsfinder.txt" % (fumen, queue, clear))
     system('py sfinder-saves.py percent -k "2nd alge Saves" -pc 2')
 
 def setup_stats():
     if(cover_fumens == "False"):
-        system(f"java -jar sfinder.jar setup --fill {fill} --margin {margin} -fo csv -e {exclude} --tetfu {fumen} -p {queue} > ezsfinder.txt --split yes")
+        system(f"java -jar sfinder.jar setup --fill {fill} --margin {margin} -fo csv -e {exclude} --tetfu {fumen} -p {queue} -K kicks/jstris180.properties -d 180 > ezsfinder.txt --split yes")
         fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open("output/setup.csv").read().splitlines()[1:]]
 
     else:
@@ -181,21 +182,21 @@ def setup_stats():
     allfumens = ""
     for indfumen in fumens:
         allfumens += indfumen + " "
-        system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} > ezsfinder.txt")
+        system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
         coveredfumen = open("ezsfinder.txt").read().splitlines()
         for line in coveredfumen:
             if("OR") in line:
                 fumencoverage = line.split("OR  = ")[1]
-                print(f"{indfumen} has {fumencoverage} coverage", end="")
+                system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
+                unglued = open("ezsfinder.txt").read()[:-1]
+                print(f"{unglued} has {fumencoverage} coverage", end="")
                 if(second_queue):
-                    system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
-                    unglued = open("ezsfinder.txt").read()[:-1]
-                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} > ezsfinder.txt")
+                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
                     output = open("ezsfinder.txt").read()
                     ungluedchance = output[output.find('success'):output.find('success') + 20].split()[2]
                     print(f", and a pc chance of {ungluedchance}")
                     ungluedchance = float(ungluedchance[:-1])/100
-                    system(f"java -jar sfinder.jar path -t {unglued} -p {second_queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv > ezsfinder.txt")
+                    system(f"java -jar sfinder.jar path -t {unglued} -p {second_queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
                     system(f"node avg_score_ezsfinderversion.js queue={second_queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_bonus} > ezsfinder.txt")
                     score = open("ezsfinder.txt").read().splitlines()
                     printingscores = True
@@ -206,7 +207,7 @@ def setup_stats():
                     fumenandscores.append([unglued, list(score)[1]])
                 print("")
 
-    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt > ezsfinder.txt")
+    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
     coveredfumens = open("ezsfinder.txt").read().splitlines()
     for line in coveredfumens:
         if("OR") in line:
@@ -228,22 +229,26 @@ def setup_stats():
             nocover += 1
 
     totalaveragescore = 0
+
     print("For max score:")
+    queuelength = sum(useable) + nocover
     for useableindex, useablecount in enumerate(useable):
-        averagescore = float(fumenandscores[scoreindex[useableindex]][1] * useablecount / (sum(useable) + nocover))
-        print(f"{fumenandscores[scoreindex[useableindex]][0]} is used {useablecount} of the time, and adds %s to the average score" % averagescore)
+        currentfumen = fumenandscores[useableindex]
+        fumenscore = currentfumen[1]
+        averagescore = fumenscore * useablecount / queuelength
+        print(f"{fumenandscores[useableindex][0]} is used {useablecount} of the time, and adds {averagescore} to the average score")
         totalaveragescore += averagescore
     print(f"The average score of this setup is {totalaveragescore}")
 
 
 def all_setups():
     for i in range(1, 11):
-        system(f"java -jar sfinder.jar setup -H use -t v115@9gtpwhYpJeAglbhglgWReAAechglgWQeAAedhglgWP?eAAeehglgWOeAAefhglgWNeAAeghglgWMeAAehhglgWLeAA?eihglgWKeAAejhglgWJeAAe -f {fill} -m {margin} --line 4 -np {pieces_used} -fo csv -o output/{i} --page {i} -p {queue} --split yes > ezsfinder.txt")
+        system(f"java -jar sfinder.jar setup -H use -t v115@9gtpwhYpJeAglbhglgWReAAechglgWQeAAedhglgWP?eAAeehglgWOeAAefhglgWNeAAeghglgWMeAAehhglgWLeAA?eihglgWKeAAejhglgWJeAAe -f {fill} -m {margin} --line 4 -np {pieces_used} -fo csv -o output/{i} --page {i} -p {queue} --split yes -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
         fumens = [i.split("http://fumen.zui.jp/?")[1].split(",")[0] for i in open(f"output/{i}.csv").read().splitlines()[1:]]
         allfumens = ""
         for indfumen in fumens:
             allfumens += indfumen + " "
-            system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} > ezsfinder.txt")
+            system(f"java -jar sfinder.jar cover -t {indfumen} -p {queue} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
             coveredfumen = open("ezsfinder.txt").read().splitlines()
             for line in coveredfumen:
                 if("OR") in line:
@@ -251,7 +256,7 @@ def all_setups():
                     print(f"{indfumen} has {fumencoverage} coverage", end="")
                     system(f"node unglueFumen.js --fu {indfumen} > ezsfinder.txt")
                     unglued = open("ezsfinder.txt").read()[:-1]
-                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} > ezsfinder.txt")
+                    system(f"java -jar sfinder.jar percent --tetfu {unglued} --patterns {second_queue} --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
                     output = open("ezsfinder.txt").read()
                     print(f", and a pc chance of {output[output.find('success'):output.find('success') + 20].split()[2]}", end = "")
                     print("")
