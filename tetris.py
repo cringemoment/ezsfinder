@@ -1,28 +1,90 @@
-from random import choice
-import keyboard
+from random import choice, randint, seed
 import pygame
 from copy import deepcopy
 import time
-from os import system as ossystem
+from os import system as ossystem, getcwd
 import tkinter as tk
 import itertools
 from bs4 import BeautifulSoup
+from collections import OrderedDict
 
 #if you're looking to modify something, it's probably here
 das = 83
-softdropdelay = 200
+arr = 0
+softdropdelay = 0
+softdropspeed = 0
+loadsetups = False #Loading setups take ages so disable this if you don't want it
+boardlength = 10
+boardheight = 15
+defaultboardcharacter = "_"
+board = [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]
+nopieceboard = deepcopy(board)
+allboards = []
+startx = 180
+starty = 180
+blocksize = 32
+blockwidth = 1
+pygame.font.init()
+normalfont = pygame.font.Font(f'fonts\ComicMono.ttf', blocksize - 14)
+statfont = pygame.font.Font(f'fonts\ComicMono.ttf', blocksize - 12)
 
-controls = {
-"left" : "move_left",
-"right" : "move_right",
-"w" : "reset",
-"up" : "clockwise_rotate",
-"s" : "counterlockwise_rotate",
-"d" : "full_rotate",
-"x" : "harddrop",
-"down" : "softdrop",
-"z" : "hold",
-}
+startingseed = randint(-10000, 100000000)
+piecesplaced = 0
+controls = {}
+
+configfile = open("settings.txt").read().splitlines()
+if(configfile == []):
+    controls = {
+    pygame.K_LEFT : "move_left",
+    pygame.K_RIGHT : "move_right",
+    pygame.K_w : "reset",
+    pygame.K_UP : "cw_rotate",
+    pygame.K_s : "ccw_rotate",
+    pygame.K_d : "full_rotate",
+    pygame.K_x : "harddrop",
+    pygame.K_DOWN : "softdrop",
+    pygame.K_z : "hold",
+    pygame.K_t : "undo",
+    pygame.K_y : "redo"
+    }
+
+configfile = open("settings.txt").read().splitlines()
+handlingfile = open("handling.txt").read().splitlines()
+settingorder = open("defaultsettingorder.txt").read().splitlines()
+configfile = sorted(configfile, key = lambda x: settingorder.index(x.split("-")[1]))
+
+def savecontrols():
+    writeto = open("settings.txt", "w")
+    handlingto = open("handling.txt", "w")
+    for control in controls:
+        writeto.write(f"{control}-{controls[control]}\n")
+
+    handlingto.write(str(das))
+    handlingto.write("\n")
+    handlingto.write(str(arr))
+    handlingto.write("\n")
+    handlingto.write(str(softdropdelay))
+    handlingto.write("\n")
+    handlingto.write(str(softdropspeed))
+    handlingto.write("\n")
+    handlingto.write(str(loadsetups))
+    handlingto.write("\n")
+
+def loadcontrols():
+    global das, arr, softdropdelay, softdropspeed, loadsetups
+    for i in configfile:
+        controls[int(i.split("-")[0])] = i.split("-")[1]
+
+    das = int(handlingfile[0])
+    arr = int(handlingfile[1])
+    softdropdelay = int(handlingfile[2])
+    softdropspeed = int(handlingfile[3])
+    loadsetups = handlingfile[4] == "True"
+
+    print(das)
+
+loadcontrols()
+controlslist = [controls[i] for i in controls]
 
 def generate_permutations(bag, permutation_length):
     elements = list(bag)
@@ -63,7 +125,7 @@ def combine_lists(lists):
     combine(0, [])
     return result
 
-def piececount(string):
+def countpieces(string):
     count = 0
     if("^" in string):
         string = [p for p in "IOSZJLT" if p not in string[string.index("^"):]]
@@ -78,7 +140,7 @@ def sfinder_all_permutations(input_str):
     # Generate all permutations for each input
     permutations = []
     for input_str in inputs:
-        input_str = input_str.replace("^", "[^]").replace("!", "p" + str(piececount(input_str)))
+        input_str = input_str.replace("^", "[^]").replace("!", "p" + str(countpieces(input_str)))
         if(not "p" in input_str):
             input_str += "p1"
         bag_with_brackets, permutation_length = input_str.split('p')
@@ -93,33 +155,32 @@ def sfinder_all_permutations(input_str):
 
 def loadfumen(fumen):
     global nopieceboard
-    if(not fumentoload == ""):
+    if(not fumen == ""):
         system(f"node decode.js {fumen} > ezsfinder.txt")
         tempboard = open("ezsfinder.txt").read()
-        tempboard = tempboard.replace("_", defaultboardcharacter)
+        tempboard = tempboard.replace("_", defaultboardcharacter).replace("X", "G")
         tempboard = tempboard.splitlines()
         fulllengthboard = []
-        for i in range(boardheight - len(tempboard)):
-            fulllengthboard.append([defaultboardcharacter for j in range(boardlength)])
-        for i in tempboard:
-            fulllengthboard.append([char for char in i])
+        if(tempboard == ['']):
+            for i in range(boardheight):
+                fulllengthboard.append([defaultboardcharacter for j in range(boardlength)])
+        else:
+            for i in range(boardheight - len(tempboard)):
+                fulllengthboard.append([defaultboardcharacter for j in range(boardlength)])
+            for i in tempboard:
+                fulllengthboard.append([char for char in i])
+
         nopieceboard = deepcopy(fulllengthboard)
         drawallpieces()
 
-fumentoload = ""
-#fumentoload = "v115@fgzhBe3hCe4hAe4hBe2hCe3hAe4hAeyhJeAgH"
-boardlength = 10
-boardheight = 15
-defaultboardcharacter = "_"
-board = [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]
-nopieceboard = deepcopy(board)
-allboards = []
-startx = 150
-starty = 180
-blocksize = 32
-blockwidth = 1
+extrax = 22
+extray = 10
 
-debug = False
+pygame.init()
+s = pygame.display.set_mode((boardlength * blocksize + extrax * blocksize, boardheight * blocksize + extray * blocksize))
+s.fill((20, 20, 20))
+
+debug = True
 def system(command):
     global lastcommand
     if(debug):
@@ -194,19 +255,74 @@ def get_score():
             print("On average, when the setup has a perfect clear, you would score %s points."% round(float(i.split(": ")[1][:-1]), 2))
             print("Factoring in pc chance (%s%%), the average score is %s" % (int(score[v + 1].split(": ")[1][:-1]) / int(score[-1]) * 100, round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2)))
 
+def evaluatesave(save):
+    piecessaveindex = {
+    "S" : 0,
+    "Z" : 0,
+    "O" : 3,
+    "J" : 1,
+    "L" : 1,
+    "I" : 4,
+    "T" : 6
+    }
+
+    score = 0
+    for piece in save:
+        score += piecessaveindex[piece]
+
+    if(save.count("J") + save.count("L") % 2 == 0):
+        score += 8
+
+    return score
+
+def evaluatedpcsave(save):
+    piecessaveindex = {
+    "T" : 0,
+    "J" : 1,
+    "L" : 1,
+    "S" : 2,
+    "Z" : 2,
+    "I" : 3,
+    "O" : 4
+    }
+
+    score = 0
+    for piece in save:
+        score += piecessaveindex[piece]
+
+    return score
+
 def pc_finder():
     global visualizeboard, lastcommand
     count = 0
-    highestvalue = 0
+    startingheight = boardheight - 2
+    highestvalue = startingheight
+
     for rowindex, row in enumerate(nopieceboard):
-        if(highestvalue != 0):
+        if(highestvalue != startingheight):
             break
         for value in row:
-            if(value != defaultboardcharacter):
-                highestvalue = boardheight - rowindex
+            if(value != defaultboardcharacter and rowindex <= startingheight):
+                highestvalue = rowindex
                 break
 
-    system(f"java -jar sfinder.jar path -t {fumen} -p {currentpiece + holdpiece + ','.join(queue)} --clear {highestvalue} > ezsfinder.txt")
+    count = 0
+
+    for i in range(boardheight - 1, -1, -1):
+        for j in range(boardlength):
+            if nopieceboard[i][j] == defaultboardcharacter:
+                count += 1
+
+        if count % 4 == 0 and i <= highestvalue: # check if count is divisible by 4
+            highestvalue = boardheight - i
+            break
+
+    allpieces = currentpiece + holdpiece + ''.join(queue)
+
+    if(len(bag) == 1):
+        allpieces += bag[0]
+
+    system(f"java -jar sfinder.jar path -t {fumen} -p {allpieces} --clear {highestvalue} > ezsfinder.txt")
 
     with open('output/path_unique.html', 'r', encoding = "utf-8") as f:
         html = f.read()
@@ -221,14 +337,357 @@ def pc_finder():
             pieces = ''.join([i[0] for i in link.get_text().split(' ')])
             solutions.append([href, pieces])
 
+    saves = []
+
     if(solutions != []):
-        visualizeboard = choice(solutions)[0]
+        for solution in solutions:
+            solutionfumen = solution[0]
+            piecesused = solution[1]
+
+            solutionallpieces = [char for char in allpieces.replace(",", "")]
+            solutionpiecesused = [char for char in piecesused]
+            pieceuseddontremove = deepcopy(piecesused)
+
+            for pieceused in pieceuseddontremove:
+                solutionpiecesused.remove(pieceused)
+                try:
+                    solutionallpieces.remove(pieceused)
+                except ValueError:
+                    lastcommand = "Errored. Place more pieces"
+                    return False
+
+            leftover = solutionallpieces + bag
+            saves.append([solutionfumen, leftover, evaluatesave(leftover)])
+
+        saves.sort(key=lambda x: int(x[2]) * -1)
+        visualizeboard = saves[0][0]
+
     else:
         lastcommand = "No solution, sorry"
 
-pygame.init()
-s = pygame.display.set_mode((boardlength * blocksize + 10 * blocksize + 600, boardheight * blocksize + 8 * blocksize))
-s.fill((20, 20, 20))
+def dpc_save_finder():
+    global visualizeboard, lastcommand
+    count = 0
+    startingheight = boardheight - 2
+    highestvalue = startingheight
+
+    for rowindex, row in enumerate(nopieceboard):
+        if(highestvalue != startingheight):
+            break
+        for value in row:
+            if(value != defaultboardcharacter and rowindex <= startingheight):
+                highestvalue = rowindex
+                break
+
+    count = 0
+
+    for i in range(boardheight - 1, -1, -1):
+        for j in range(boardlength):
+            if nopieceboard[i][j] == defaultboardcharacter:
+                count += 1
+
+        if count % 4 == 0 and i <= highestvalue: # check if count is divisible by 4
+            highestvalue = boardheight - i
+            break
+
+    allpieces = currentpiece + holdpiece + ''.join(queue)
+
+    if(len(bag) == 1):
+        allpieces += bag[0]
+
+    system(f"java -jar sfinder.jar path -t {fumen} -p {allpieces} --clear {highestvalue} > ezsfinder.txt")
+
+    with open('output/path_unique.html', 'r', encoding = "utf-8") as f:
+        html = f.read()
+
+    soup = BeautifulSoup(html, 'html.parser')
+
+    solutions = []
+
+    for link in soup.find_all('a')[1:]:
+        href = link.get('href')
+        if href.startswith('http://fumen.zui.jp/?'):
+            pieces = ''.join([i[0] for i in link.get_text().split(' ')])
+            solutions.append([href, pieces])
+
+    saves = []
+
+    if(solutions != []):
+        for solution in solutions:
+            solutionfumen = solution[0]
+            piecesused = solution[1]
+
+            solutionallpieces = [char for char in allpieces.replace(",", "")]
+            solutionpiecesused = [char for char in piecesused]
+            pieceuseddontremove = deepcopy(piecesused)
+
+            for pieceused in pieceuseddontremove:
+                solutionpiecesused.remove(pieceused)
+                try:
+                    solutionallpieces.remove(pieceused)
+                except ValueError:
+                    lastcommand = "Errored. Place more pieces"
+                    return False
+
+            leftover = solutionallpieces + bag
+            saves.append([solutionfumen, leftover, evaluatedpcsave(leftover)])
+
+        saves.sort(key=lambda x: int(x[2]) * -1)
+        visualizeboard = saves[0][0]
+
+    else:
+        lastcommand = "No solution, sorry"
+
+def hold_reorders(queue):
+    if len(queue) <= 1:
+        return set(queue)  # base case
+
+    result = set()
+
+    a = hold_reorders(queue[1:])  # use first piece, work on the 2nd-rest
+    for part in a:
+        result.add(queue[0] + part)
+
+    b = hold_reorders(queue[0] + queue[2:])  # use second piece, work on 1st + 3rd-rest
+    for part in b:
+        result.add(queue[1] + part)
+
+    return list(result)
+
+def getscore(queue, clear, fumen):
+    holdqueues = hold_reorders(queue.replace(",", ""))
+    queuefeed = open("queuefeed.txt", "w")
+    for i in holdqueues:
+        queuefeed.write(i + "\n")
+    queuefeed.close()
+
+    system(f"java -jar sfinder.jar cover -t {fumen} -pp queuefeed.txt > ezsfinder.txt")
+    system(f'node avg_score_ezsfinderversion.js queue={queue} initialB2B={initial_b2b} initialCombo={initial_combo} b2bEndBonus={b2b_end_bonus} fileType=cover fileName="output/cover.csv" > ezsfinder.txt')
+    score = open("ezsfinder.txt").read().splitlines()
+    printingscores = True
+    for v, i in enumerate(score):
+        if("average_covered_score" in i):
+            return(round(float(i.split(": ")[1][:-1]) / int(score[-1]) * int(score[v + 1].split(": ")[1][:-1]), 2))
+
+def cat_finder():
+    global visualizeboard, lastcommand
+    count = 0
+    startingheight = boardheight - 2
+    highestvalue = startingheight
+
+    for rowindex, row in enumerate(nopieceboard):
+        if(highestvalue != startingheight):
+            break
+        for value in row:
+            if(value != defaultboardcharacter and rowindex <= startingheight):
+                highestvalue = rowindex
+                break
+
+    count = 0
+
+    for i in range(boardheight - 1, -1, -1):
+        for j in range(boardlength):
+            if nopieceboard[i][j] == defaultboardcharacter:
+                count += 1
+
+        if count % 4 == 0 and i <= highestvalue: # check if count is divisible by 4
+            highestvalue = boardheight - i
+            break
+
+    allpieces = currentpiece + holdpiece + ''.join(queue)
+
+    if(len(bag) == 1):
+        allpieces += bag[0]
+
+    system(f"java -jar sfinder.jar path -t {fumen} -p {allpieces} --clear {highestvalue} > ezsfinder.txt")
+
+    with open('output/path_unique.html', 'r', encoding = "utf-8") as f:
+        html = f.read()
+
+    soup = BeautifulSoup(html, 'html.parser')
+
+    solutions = []
+
+    for link in soup.find_all('a')[1:]:
+        href = link.get('href')
+        if href.startswith('http://fumen.zui.jp/?'):
+            pieces = ''.join([i[0] for i in link.get_text().split(' ')])
+            solutions.append([href, pieces])
+
+    saves = []
+
+    if(solutions != []):
+        for solution in solutions:
+            solutionfumen = solution[0]
+            piecesused = solution[1]
+
+            system(f"node glueFumens.js {solutionfumen} > ezsfinder.txt")
+            glued = open("ezsfinder.txt").read().replace("\n", "")
+
+            solutionpiecesused = ','.join([char for char in piecesused])
+
+            saves.append([solutionfumen, getscore(solutionpiecesused, highestvalue, glued)])
+
+        saves.sort(key=lambda x: int(x[1]) * -1)
+
+        visualizeboard = saves[0][0]
+
+    else:
+        lastcommand = "No solution, sorry"
+
+allsetups = {}
+
+if(loadsetups):
+    print("Loading konbini setups")
+    firstsetups = open("konbini/first.txt").read().splitlines()
+    firstsetupscover6 = eval(open("konbini/first-covered-6.json").read())
+    firstsetupscover7 = eval(open("konbini/first-covered-7.json").read())
+    print("PC number 1 loaded")
+
+    for i in range(2, 8):
+        allsetups[i] = {}
+        allsetups[i]["setups"] = open(f"konbini/setups{i}.txt").read().splitlines()
+        allsetups[i]["cover"] = eval(open(f"konbini/setups{i}cover.json").read())
+        print(f"PC number {i} loaded")
+
+if(loadsetups):
+    dpcsetups = open("konbini/dpc.txt").read().splitlines()
+    dpccover = eval(open("konbini/dpccover.json").read())
+    print(f"DPC setups loaded")
+
+def unglue(glued):
+    system(f"node unglueFumen.js --fu {glued} > ezsfinder.txt")
+    return(open("ezsfinder.txt").read().replace("\n", ""))
+
+def setup_finder():
+    global visualizeboard, lastcommand
+    if(nopieceboard != [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]):
+        lastcommand = "This only works for empty boards"
+        return False
+
+    allpieces = currentpiece + holdpiece + ''.join(queue)
+    if(len(bag) == 1):
+        allpieces += bag[0]
+    pcnumber = (5 * piecesplaced % 7) + 1
+    pcpieces = [3, 7, 7, 8, 5, 7, 6, 3]
+
+    if(pcnumber != 1 and holdpiece == ""):
+        allpieces += (choice(bag))
+
+    if(pcnumber == 1):
+        if(len(allpieces) == 6):
+            visualizeboard = unglue(firstsetups[firstsetupscover6[allpieces][0]])
+        else:
+            visualizeboard = unglue(firstsetups[firstsetupscover7[allpieces][0]])
+
+    elif(pcnumber == 2 or pcnumber == 3):
+        allpieces = [char for char in allpieces]
+
+        piecesinused = ""
+        if(allpieces[1] in allpieces[2:]):
+            allpieces[0], allpieces[1] = allpieces[1], allpieces[0]
+
+        allpieces = ''.join(allpieces)
+
+        piececount = pcpieces[pcnumber]
+        pckeypieces = allpieces[:piececount]
+        pcsetups = allsetups[pcnumber]["setups"]
+        pcsetupcovers = allsetups[pcnumber]["cover"]
+
+        try:
+            if(len(pcsetupcovers[pckeypieces]) == 0):
+                lastcommand = "No setup found in the database"
+                return False
+        except KeyError:
+            lastcommand = "No setup found in the database"
+            return False
+
+        visualizeboard = unglue(pcsetups[pcsetupcovers[pckeypieces][0]])
+
+    elif(pcnumber == 5):
+        allpieces = ''.join(allpieces)
+        piececount = pcpieces[pcnumber]
+        pckeypieces = allpieces[:piececount]
+        pcsetups = allsetups[pcnumber]["setups"]
+        pcsetupcovers = allsetups[pcnumber]["cover"]
+
+        if(len(pcsetupcovers[pckeypieces]) == 0):
+            allpieces = [char for char in allpieces]
+
+            piecesinused = ""
+            if(allpieces[1] in allpieces[2:]):
+                allpieces[0], allpieces[1] = allpieces[1], allpieces[0]
+
+            allpieces = ''.join(allpieces)
+
+        piececount = pcpieces[pcnumber]
+        pckeypieces = allpieces[:piececount]
+        pcsetups = allsetups[pcnumber]["setups"]
+        pcsetupcovers = allsetups[pcnumber]["cover"]
+
+        try:
+            if(len(pcsetupcovers[pckeypieces]) == 0):
+                lastcommand = "No setup found in the database"
+                return False
+        except KeyError:
+            lastcommand = "No setup found in the database"
+            return False
+
+        visualizeboard = unglue(pcsetups[pcsetupcovers[pckeypieces][0]])
+
+    else:
+        piececount = pcpieces[pcnumber]
+        pckeypieces = allpieces[:piececount]
+        pcsetups = allsetups[pcnumber]["setups"]
+        pcsetupcovers = allsetups[pcnumber]["cover"]
+
+        try:
+            if(len(pcsetupcovers[pckeypieces]) == 0):
+                lastcommand = "No setup found in the database"
+                return False
+        except KeyError:
+            lastcommand = "No setup found in the database"
+            return False
+
+        visualizeboard = unglue(pcsetups[pcsetupcovers[pckeypieces][0]])
+
+def dpc_finder():
+    global visualizeboard, lastcommand
+    if(nopieceboard != [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]):
+        lastcommand = "This only works for empty boards"
+        return False
+
+    allpieces = currentpiece + holdpiece + ''.join(queue)
+    if(len(bag) == 1):
+        allpieces += bag[0]
+
+    pcnumber = (5 * piecesplaced % 7) + 1
+
+    if(pcnumber != 3):
+        lastcommand = "This only works for third pc"
+        return False
+
+    allpieces = [char for char in allpieces]
+
+    piecesinused = ""
+    if(allpieces[1] in allpieces[2:]):
+        allpieces[0], allpieces[1] = allpieces[1], allpieces[0]
+
+    allpieces = ''.join(allpieces)
+
+    pckeypieces = allpieces
+    pcsetups = dpcsetups
+    pcsetupcovers = dpccover
+
+    try:
+        if(len(pcsetupcovers[pckeypieces]) == 0):
+            lastcommand = "No setup found in the database"
+            return False
+    except KeyError:
+        lastcommand = "No setup found in the database"
+        return False
+
+    visualizeboard = unglue(pcsetups[pcsetupcovers[pckeypieces][0]])
 
 #Define color codes
 RED = (255, 0, 0)
@@ -243,13 +702,16 @@ GARBAGE = (128, 128, 128)
 BLACK = (0, 0, 0)
 
 scorevalues = {
+0 : 0,
 1 : 100,
 2 : 300,
 3 : 500,
 4 : 800,
+"t0" : 400,
 "t1" : 800,
 "t2" : 1200,
 "t3" : 1600,
+"pc" : 3500
 }
 
 # Define the pieces dictionary with color codes as keys
@@ -375,7 +837,6 @@ pieces = {
     }
 }
 
-
 def loadtable(file):
     cardinals = "NESW"
     kicktable = open(file).read().splitlines()
@@ -393,6 +854,10 @@ def loadtable(file):
                 allkicks = str(pieces[callpiece]["srs"][callrotation])
 
             allkicks = list(eval(allkicks))
+
+            if(type(allkicks[0]) != type([])):
+                allkicks = [allkicks]
+
             pieces[piece]["srs"][rotation] = allkicks
 
 loadtable("kicks/tetrio180.properties")
@@ -471,87 +936,151 @@ def drawvisualizer(loadfumen):
 
 def get_filled_rows(board):
     filled_rows = []
-    for row in board:
+    for rowindex, row in enumerate(board):
         if all(square != defaultboardcharacter for square in row):
-            filled_rows.append(board.index(row))
+            filled_rows.append(rowindex)
     return filled_rows
 
 def clear_filled_rows(board):
-    global combo, score, combocount, b2b
-    gointob2b = False
-    filled_rows = get_filled_rows(board)
+    global combo, score, combocount, b2b, gointob2b
+    gointob2b = 0
+    filled_rows = get_filled_rows(nopieceboard)
+
+    if(currentpiece == "T"):
+        facing = [[1, 0, 1],
+                  [0, 0, 0],
+                  [0, 0, 0]]
+
+        for i in range(currentpiecerotation):
+            facing = rotate(facing)
+
+        corners = 0
+        facingcorners = 0
+
+        for xoffset in range(0, 3, 2):
+            for yoffset in range(0, 3, 2):
+                if(currentpiecey + yoffset < boardheight and currentpiecex + xoffset < boardlength):
+                    if(nopieceboard[currentpiecey + yoffset][currentpiecex + xoffset] != defaultboardcharacter):
+                        corners += 1
+                        if(facing[yoffset][xoffset] == 1):
+                            facingcorners += 1
+                else:
+                    corners += 1
+                    if(facing[yoffset][xoffset] == 1):
+                        facingcorners += 1
+
+        if(tspinkick):
+            print(bigkick)
+            if(corners >= 3):
+                if(facingcorners == 2):
+                    gointob2b = 2
+                else:
+                    gointob2b = 1
+                    if(bigkick == True):
+                        gointob2b = 2
 
     if(len(filled_rows) > 0):
         combo = True
-
-        if(currentpiece == "T"):
-            facing = [[1, 0, 1],
-                      [0, 0, 0],
-                      [0, 0, 0]]
-
-            for i in range(currentpiecerotation):
-                facing = rotate(facing)
-
-            corners = 0
-            facingcorners = 0
-
-            for xoffset in range(0, 3, 2):
-                for yoffset in range(0, 3, 2):
-                    if(currentpiecey + yoffset <= boardheight and currentpiecex + xoffset <= boardlength):
-                        if(nopieceboard[currentpiecey + yoffset][currentpiecex + xoffset] != defaultboardcharacter):
-                            corners += 1
-                            if(facing[yoffset][xoffset] == 1):
-                                facingcorners += 1
-                    else:
-                        if(nopieceboard[currentpiecey + yoffset][currentpiecex + xoffset] != defaultboardcharacter):
-                            corners += 1
+        combo += 1
 
         for row in filled_rows:
             del board[row]
             board.insert(0, [defaultboardcharacter for _ in range(boardlength)])
-        score += tabulatescore(len(filled_rows), gointob2b)
 
     else:
         combo = False
         combocount = 0
 
+    return(len(filled_rows))
+
 combo = False
 b2b = False
 combocount = 0
 score = 0
-tspinkick = False
+gointob2b = 0
+
+lastpcpiececount = 0
+consecutivepcs = 0
+consecutiveb2bs = 0
 
 def tabulatescore(linescleared, activateb2b):
-    global combo, combocount, b2b
-    currentscore = scorevalues[linescleared]
-    if(b2b):
-        currentscore += (0.5 * scorevalues[linescleared])
+    global combo, combocount, b2b, lastpcpiececount, consecutivepcs, consecutiveb2bs
+
+    pced = False
+
+    currentscore = 0
+
+    if(activateb2b == 2):
+        currentscore = scorevalues["t" + str(linescleared)]
+        consecutiveb2bs += 1
+
+    elif(activateb2b == 1):
+        currentscore = scorevalues[linescleared] + 100
+        consecutiveb2bs += 1
+
+    else:
+        currentscore = scorevalues[linescleared]
+
+    if(nopieceboard == [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]):
+        currentscore += scorevalues["pc"]
+        pced = True
+        consecutivepcs += 1
+        lastpcpiececount = piecesplaced
+
+    if(piecesplaced - lastpcpiececount > 10):
+        consecutivepcs = 0
+
+    if(b2b == True):
+        if(activateb2b > 0 or linescleared == 4):
+            currentscore *= 1.5
 
     currentscore += combocount * 50
 
-    if(linescleared == 4 or activateb2b):
-        b2b = True
-    else:
-        b2b = False
+    wordlines = ["", "Single", "Double", "Triple", "QwQ"]
+    word = wordlines[linescleared]
 
-    if(combo):
+    if(b2b):
+        word = "B2B " + word
+
+    if(activateb2b == 1):
+        word = "Mini Tspin " + word
+    elif(activateb2b == 2):
+        word = "Tspin " + word
+
+    if(pced):
+        word += " PC"
+
+    if(linescleared == 4 or activateb2b > 0):
+        b2b = True
+
+    elif(linescleared > 0):
+        b2b = False
+        consecutiveb2bs = 0
+
+    if(combo == True):
         combocount += 1
+
+    clearscreen(-5, 0, 6, 4)
+    writetext(-5, 0, word, 30)
 
     return(int(currentscore))
 
-ogbag = [char for char in "ISZJLOT"]
+ogbag = [char for char in "IOSZJLT"]
 bag = deepcopy(ogbag)
 
 def piecepick():
     global bag
+    chosenseed = ((piecesplaced * startingseed) + startingseed * startingseed)
+    seed(chosenseed)
     piecepicked = choice(bag)
     bag.remove(piecepicked)
     if(len(bag) == 0):
         bag = deepcopy(ogbag)
     return piecepicked
 
-currentpiece = piecepick()
-queue = [piecepick() for i in range(5)]
+queue = [piecepick() for i in range(6)]
+currentpiece = queue[0]
+queue.pop(0)
 holdpiece = ""
 currentpiecerotation = 0
 currentpiecex = pieces[currentpiece]["spawnposition"]
@@ -563,33 +1092,40 @@ def kicksubtract(kicktable1, kicktable2):
         subtractedkicktable.append([kick1[0] - kick2[0], kick1[1] - kick2[1]])
     return subtractedkicktable
 
+tspinkick = False
+bigkick = False
 def rotatepiece(rotation):
-    global currentpiecerotation, currentpiece, currentpiecex, currentpiecey, tspinkick
+    global currentpiecerotation, currentpiece, currentpiecex, currentpiecey, tspinkick, bigkick
     plsbreak = False
     kicks = pieces[currentpiece]["srs"][str(currentpiecerotation) + str((currentpiecerotation + rotation) % 4)]
     for kicknumber, offset in enumerate(kicks):
         if placeable(currentpiece, (currentpiecerotation + rotation) % 4, currentpiecex + offset[0], currentpiecey + (offset[1] * -1)):
-            if(currentpiece == "T" and kicknumber > 0):
+            if(currentpiece == "T"):
                 tspinkick = True
+                print(kicknumber)
+                if(kicknumber == 4):
+                    bigkick = True
             else:
                 tspinkick = False
+                bigkick = False
+
             #print(f"offset of {offset[0]}x and {(offset[1] * -1)}y works")
             currentpiecex += offset[0]
             currentpiecey += (offset[1] * -1)
             currentpiecerotation = (currentpiecerotation + rotation) % 4
             break
 
-def clockwise_rotate():
+def cw_rotate():
     rotatepiece(1)
 
-def counterlockwise_rotate():
+def ccw_rotate():
     rotatepiece(-1)
 
 def full_rotate():
     rotatepiece(2)
 
 def move(distance):
-    global currentpiecerotation, currentpiecex
+    global currentpiecex
     if placeable(currentpiece, currentpiecerotation, currentpiecex + distance, currentpiecey):
         currentpiecex += distance
 
@@ -599,42 +1135,126 @@ def move_left():
 def move_right():
     move(1)
 
+def move_das(direction):
+    global currentpiecex
+    tempx = currentpiecex
+    for distance in range(0, 10 * direction, direction):
+        if placeable(currentpiece, currentpiecerotation, currentpiecex + distance, currentpiecey):
+            tempx = distance
+        else:
+            currentpiecex += tempx
+            break
+    drawallpieces()
+
+def move_left_das():
+    move_das(-1)
+
+def move_right_das():
+    move_das(1)
+
+def savestate():
+    allboards.append([deepcopy(nopieceboard), deepcopy(queue), currentpiece, holdpiece, deepcopy(bag), piecesplaced, deepcopy(score)])
+
 piecesplaced = 0
-allboards = []
-allboards.append(deepcopy(nopieceboard))
 
 def harddrop():
-    global currentpiece, currentpiecerotation, currentpiecex, currentpiecey, allboards, piecesplaced, bag, visualizeboard
+    global currentpiece, currentpiecerotation, currentpiecex, currentpiecey, allboards, piecesplaced, bag, visualizeboard, score, gointob2b, piecesplaced, undooffset
+
     visualizeboard = ""
+
+    counter = 0
     while placeable(currentpiece, currentpiecerotation, currentpiecex, currentpiecey):
         currentpiecey += 1
+        score += 2
+        counter += 1
     currentpiecey -= 1
+    score -= 2
+
+    if(counter != 1):
+        bigkick = False
+        tspinkick = False
+
     putpiece(currentpiece, currentpiecerotation, currentpiecex, currentpiecey, nopieceboard)
-    clear_filled_rows(nopieceboard)
+
+    filled_rows = clear_filled_rows(nopieceboard)
+    score += tabulatescore(filled_rows, gointob2b)
     piecesplaced += 1
-    allboards.append(deepcopy(nopieceboard))
     currentpiece = queue[0]
     queue.pop(0)
+
     currentpiecerotation = 0
     currentpiecex = pieces[currentpiece]["spawnposition"]
     currentpiecey = 0
     board = deepcopy(nopieceboard)
+
     drawallpieces()
     drawqueue()
 
+    savestate()
+    undooffset = 0
+
+undooffset = 0
+
+def loadboard():
+    global nopieceboard, board, queue, currentpiece, holdpiece, bag, piecesplaced, currentpiecerotation, currentpiecex, currentpiecey, score, undooffset, visualizeboard
+    visualizeboard = ""
+
+    nopieceboard = deepcopy(allboards[-1 - undooffset][0])
+    board = deepcopy(nopieceboard)
+
+    queue = deepcopy(allboards[-1 - undooffset][1])
+    currentpiece = deepcopy(allboards[-1 - undooffset][2])
+    holdpiece = deepcopy(allboards[-1 - undooffset][3])
+    bag = deepcopy(allboards[-1 - undooffset][4])
+    piecesplaced = allboards[-1 - undooffset][5]
+    score = allboards[-1 - undooffset][6]
+
+    clearscreen(-6, -3, 6, 3)
+    if(not holdpiece == ""):
+        if(holdpiece == "I"):
+            drawinfopieces(-5, -6, holdpiece)
+        else:
+            drawinfopieces(-3, -4, holdpiece)
+
+    if bag == []:
+        bag = deepcopy(ogbag)
+
+    currentpiecerotation = 0
+    currentpiecex = pieces[currentpiece]["spawnposition"]
+    currentpiecey = 0
+
+    drawallpieces()
+
 def undo():
-    global nopieceboard, board
-    if(len(allboards) > 1):
-        nopieceboard = deepcopy(allboards[-2])
-        board = deepcopy(nopieceboard)
-        drawallpieces()
-        allboards.pop(-1)
+    global undooffset
+    if(len(allboards) > undooffset + 1):
+        undooffset += 1
+        loadboard()
+
+def redo():
+    global undooffset
+    if(undooffset > 0):
+        undooffset -= 1
+        loadboard()
 
 def softdrop():
-    global currentpiecey
+    global currentpiecey, score
+    if(placeable(currentpiece, currentpiecerotation, currentpiecex, currentpiecey + 1)):
+        currentpiecey += 1
+        score += 1
+
+def softdrop_das():
+    global currentpiecey, score
+    counter = 0
     while placeable(currentpiece, currentpiecerotation, currentpiecex, currentpiecey):
         currentpiecey += 1
+        score += 1
+        counter += 1
+    if(counter != 1):
+        bigkick = False
+        tspinkick = False
     currentpiecey -= 1
+    score -= 1
     drawallpieces()
 
 def hold():
@@ -650,8 +1270,11 @@ def hold():
     currentpiecerotation = 0
     currentpiecex = pieces[currentpiece]["spawnposition"]
     currentpiecey = 0
-    clearscreen(-3, -3, 6, 3)
-    drawinfopieces(-3, -3, holdpiece)
+    clearscreen(-6, -3, 6, 3)
+    if(holdpiece == "I"):
+        drawinfopieces(-5, -6, holdpiece)
+    else:
+        drawinfopieces(-3, -4, holdpiece)
 
 running = True
 
@@ -672,8 +1295,12 @@ def blockrenderer(x, y, color, smaller = False):
 
 def writetext(x, y, text, size):
     global startx, starty, blocksize, blockwidth
-    font = pygame.font.SysFont(None, size)
-    pytext = font.render(text, True, (255, 255, 255))
+    pytext = normalfont.render(text, True, (255, 255, 255))
+    s.blit(pytext, (startx + (x * blocksize), starty + (y * blocksize), blocksize, blocksize))
+
+def stattext(x, y, text, size):
+    global startx, starty, blocksize, blockwidth
+    pytext = statfont.render(text, True, (255, 255, 255))
     s.blit(pytext, (startx + (x * blocksize), starty + (y * blocksize), blocksize, blocksize))
 
 def drawinfopieces(x, y, piece):
@@ -690,25 +1317,22 @@ tetrominoes = f"IZSJLTOG{defaultboardcharacter}"
 piece = 0
 smaller = False
 filledpieces = []
-xlocation = 8
+xlocation = 6
 
 def createcolorsquares():
     for v, i in enumerate(tetrominoes):
         blockrenderer(boardlength + xlocation, v, pieces[i]["color"])
 
-    blockrenderer(boardlength + xlocation, len(pieces) + 4, (0, 0, 255))
-
 def createsettextboxes():
     for box in textvariables:
-        settextbutton(box[0], str(eval(box[4])), box[1], box[2], box[3], 24)
+        settextbutton(box[0], str(eval(box[4])), box[1], box[2], box[3])
 
-def settextbutton(text, subtext, x, y, color, size):
+def settextbutton(text, subtext, x, y, color):
     for i in range(4):
         for j in range(2):
             blockrenderer(x + i, j + y, color)
 
-    font = pygame.font.SysFont(None, size)
-    pytext = font.render(text, True, (255, 255, 255))
+    pytext = normalfont.render(text, True, (255, 255, 255))
     textwidth = pytext.get_width()
     textheight = pytext.get_height()
     s.blit(pytext, (startx + (x * blocksize) + (2 * blocksize) - textwidth/2, starty + (y * blocksize) + (1 *  blocksize) - textheight/2, blocksize, blocksize))
@@ -720,13 +1344,14 @@ def grayoutboard():
                 nopieceboard[piecerowindex][piececolumnindex] = "G"
 
 def truefalsebutton(text, x, y, value):
-    for i in range(-3, 3, 1):
-        blockrenderer(x + i, y - 1, RESET)
-    font = pygame.font.SysFont(None, 24)
-    pytext = font.render(text, True, (255, 255, 255))
+    clearscreen(x - 1, y - 1, 4, 3)
+
+    pytext = normalfont.render(text, True, (255, 255, 255))
+
     textwidth = pytext.get_width()
     textheight = pytext.get_height()
-    s.blit(pytext, (startx + (x * blocksize) + (1 * blocksize) - textwidth/2, starty + (y - 1 * blocksize)))
+
+    s.blit(pytext, (startx + (x * blocksize) + (1 * blocksize) - textwidth/2, starty + ((y - 1) * blocksize)))
 
     blockrenderer(x + 1, y, RED)
     blockrenderer(x, y, GARBAGE)
@@ -740,22 +1365,53 @@ def truefalsebutton(text, x, y, value):
 
 def createsfinderboxes():
     for box in ezsfindervariables:
-        setezsfinderbutton(box[0], "deprecated", box[1], box[2], box[3], 24)
+        setezsfinderbutton(box[0], "deprecated", box[1], box[2], box[3])
+
+def createmenuboxes():
+    for box in menuvariables:
+        setezsfinderbutton(box[0], "deprecated", box[1], box[2], box[3])
+
+def createsettingboxes():
+    for box in settingvariables:
+        setezsfinderbutton(box[0], "deprecated", box[1], box[2], box[3])
+
+controlcolors = [RED, BLUE]
+def createcontrolboxes():
+    for controlindex, control in enumerate(controls):
+        setcontrolbutton(controls[control], "deprecated", 22, controlindex, controlcolors[controlindex % 2], 18)
+
+def createhelpboxes():
+    for box in helpvariables:
+        setezsfinderbutton(box[0], "deprecated", box[1], box[2], box[3])
 
 def createtruefalse():
     for truefalse in truevariables:
         truefalsebutton(truefalse[0], truefalse[1], truefalse[2], truefalse[3])
 
-def setezsfinderbutton(text, subtext, x, y, color, size):
+def settingtruefalse():
+    for truefalse in settingtruevariables:
+        truefalsebutton(truefalse[0], truefalse[1], truefalse[2], truefalse[3])
+
+def setezsfinderbutton(text, subtext, x, y, color):
     for i in range(4):
         for j in range(2):
             blockrenderer(x + i, j + y, color)
 
-    font = pygame.font.SysFont(None, size)
-    pytext = font.render(text, True, (255, 255, 255))
+    pytext = normalfont.render(text, True, (255, 255, 255))
     textwidth = pytext.get_width()
     textheight = pytext.get_height()
     s.blit(pytext, (startx + (x * blocksize) + (2 * blocksize) - textwidth/2, starty + (y * blocksize) + (1 *  blocksize) - textheight/2, blocksize, blocksize))
+
+def setcontrolbutton(text, subtext, x, y, color, size):
+    for i in range(4):
+        for j in range(1):
+            blockrenderer(x + i, j + y, color)
+
+    font = pygame.font.Font(f'fonts\ComicMono.ttf',size)
+    pytext = normalfont.render(text, True, (255, 255, 255))
+    textwidth = pytext.get_width()
+    textheight = pytext.get_height()
+    s.blit(pytext, (startx + (x * blocksize) + (2 * blocksize) - textwidth/2, starty + (y * blocksize) + (0.5 *  blocksize) - textheight/2, blocksize, blocksize))
 
 def setqueuebutton():
     x = boardlength + 2
@@ -764,18 +1420,16 @@ def setqueuebutton():
         for j in range(2):
             blockrenderer(x + i, y + j, RESET)
 
-    font = pygame.font.SysFont(None, 24)
-    pytext = font.render("Set game queue", True, (255, 255, 255))
+    pytext = normalfont.render("Set game queue", True, (255, 255, 255))
     textwidth = pytext.get_width()
     textheight = pytext.get_height()
     s.blit(pytext, (startx + (x * blocksize) + (2 * blocksize) - textwidth/2, starty + (y * blocksize) + (1 *  blocksize) - textheight/2, blocksize, blocksize))
 
 def setheldpiece():
-    x = -4
+    x = -5
     y = -5
 
-    font = pygame.font.SysFont(None, 24)
-    pytext = font.render("Set the held piece", True, (255, 255, 255))
+    pytext = normalfont.render("Set held piece", True, (255, 255, 255))
     textwidth = pytext.get_width()
     textheight = pytext.get_height()
     s.blit(pytext, (startx + (x * blocksize) + (2 * blocksize) - textwidth/2, starty + (y * blocksize) + (1 *  blocksize) - textheight/2, blocksize, blocksize))
@@ -789,20 +1443,35 @@ def set_variable(variable_name):
     window.title("Set Variable")
     window.geometry("300x100")  # Set window size to 300x100
 
+    print("Window initialized")
+
     # Create label
     label = tk.Label(window, text=f"Set the value of {variable_name}")
     label.pack()
 
+    print("Textbox inserted")
+
     # Create textbox
     textbox = tk.Entry(window)
-    textbox.insert(-1, eval(variable_name))
+    if(variable_name == "loadfumen"):
+        textbox.insert(-1, outputcode())
+    else:
+        textbox.insert(-1, eval(variable_name))
+
     textbox.pack()
+    print("Inserted value")
     # Function to set the variable and close the window
     def set_value():
-        global_dict = globals()  # Get the global dictionary
-        global_dict[variable_name] = textbox.get()  # Set the variable in the global dictionary
+        print("setting value")
+        if(variable_name == "loadfumen"):
+            loadfumen(textbox.get())
+        else:
+            global_dict = globals()  # Get the global dictionary
+            global_dict[variable_name] = textbox.get()  # Set the variable in the global dictionary
+
         window.destroy()
         root.quit()
+        print("done")
 
     # Bind Enter key to set_value function
     textbox.bind('<Return>', lambda event: set_value())
@@ -810,9 +1479,118 @@ def set_variable(variable_name):
     # Protocol handler for window close event
     window.protocol("WM_DELETE_WINDOW", set_value)
 
+    print("starting  the main loop")
+    window.mainloop()  # Start the tkinter event loop
+    root.destroy()
+
+KEYSYM_TO_KEY = {
+    "Alt_L": pygame.K_LALT,
+    "Alt_R": pygame.K_RALT,
+    "BackSpace": pygame.K_BACKSPACE,
+    "Caps_Lock": pygame.K_CAPSLOCK,
+    "Control_L": pygame.K_LCTRL,
+    "Control_R": pygame.K_RCTRL,
+    "Delete": pygame.K_DELETE,
+    "Down": pygame.K_DOWN,
+    "End": pygame.K_END,
+    "Escape": pygame.K_ESCAPE,
+    "F1": pygame.K_F1,
+    "F2": pygame.K_F2,
+    "F3": pygame.K_F3,
+    "F4": pygame.K_F4,
+    "F5": pygame.K_F5,
+    "F6": pygame.K_F6,
+    "F7": pygame.K_F7,
+    "F8": pygame.K_F8,
+    "F9": pygame.K_F9,
+    "F10": pygame.K_F10,
+    "F11": pygame.K_F11,
+    "F12": pygame.K_F12,
+    "Home": pygame.K_HOME,
+    "Insert": pygame.K_INSERT,
+    "KP_0": pygame.K_KP0,
+    "KP_1": pygame.K_KP1,
+    "KP_2": pygame.K_KP2,
+    "KP_3": pygame.K_KP3,
+    "KP_4": pygame.K_KP4,
+    "KP_5": pygame.K_KP5,
+    "KP_6": pygame.K_KP6,
+    "KP_7": pygame.K_KP7,
+    "KP_8": pygame.K_KP8,
+    "KP_9": pygame.K_KP9,
+    "KP_Add": pygame.K_KP_PLUS,
+    "KP_Decimal": pygame.K_KP_PERIOD,
+    "KP_Divide": pygame.K_KP_DIVIDE,
+    "KP_Enter": pygame.K_KP_ENTER,
+    "KP_Multiply": pygame.K_KP_MULTIPLY,
+    "KP_Subtract": pygame.K_KP_MINUS,
+    "Left": pygame.K_LEFT,
+    "Menu": pygame.K_MENU,
+    "Num_Lock": pygame.K_NUMLOCK,
+    "Page_Down": pygame.K_PAGEDOWN,
+    "Page_Up": pygame.K_PAGEUP,
+    "Pause": pygame.K_PAUSE,
+    "Print": pygame.K_PRINT,
+    "Right": pygame.K_RIGHT,
+    "Scroll_Lock": pygame.K_SCROLLLOCK,
+    "Shift_L": pygame.K_LSHIFT,
+    "Shift_R": pygame.K_RSHIFT,
+    "space": pygame.K_SPACE,
+    "Tab": pygame.K_TAB,
+    "Up": pygame.K_UP,
+    "quoteleft": pygame.K_BACKQUOTE
+}
+
+
+def save_key_input(key_name):
+    global controls
+    root = tk.Tk()
+    root.withdraw()  # Hide the tkinter window
+
+    # Create tkinter window with larger size
+    window = tk.Toplevel()
+    window.title("Save Key Input")
+    window.geometry("300x100")  # Set window size to 300x100
+
+    # Create label
+    label = tk.Label(window, text=f"Set the value of {controls[key_name]}")
+    label.pack()
+
+    valuern = tk.Label(window, text=f"Currentvalue is {pygame.key.name(key_name).upper()}")
+    valuern.pack()
+
+    # Function to save the key input and close the window
+    def save_input(event):
+        global controls
+
+        key = event.keysym
+        if(key in KEYSYM_TO_KEY):
+            key_input = KEYSYM_TO_KEY[key]
+        else:
+            key_input = eval(f"pygame.K_{event.keysym}")
+
+        if(key_input in controls):
+            error = tk.Label(window, text=f"This control is already in use, please dont do that")
+            error.pack()
+        else:
+            controls[key_input] = controls.pop(key_name)
+            window.destroy()
+            root.quit()
+
+    def quit():
+        window.destroy()
+        root.quit()
+
+    # Bind key press event to save_input function
+    window.bind('<KeyPress>', save_input)
+
+    # Protocol handler for window close event
+    window.protocol("WM_DELETE_WINDOW", lambda: quit())
+
     window.mainloop()  # Start the tkinter event loop
 
 def set_queue():
+    print("setting queue")
     root = tk.Tk()
     root.withdraw()  # Hide the tkinter window
 
@@ -832,18 +1610,16 @@ def set_queue():
     # Function to set the variable and close the window
     def set_value():
         global queue, currentpiece, bag
-        try:
-            allqueues = sfinder_all_permutations(textbox.get())
-            queue = [char for char in choice(allqueues)]
-            currentpiece = queue[0]
-            queue.pop(0)
-            bag = deepcopy(ogbag)
-            while(len(queue) < 5):
-                    queue.append(piecepick())
-        except:
-            pass
+        allqueues = sfinder_all_permutations(textbox.get())
+        queue = [char for char in choice(allqueues)]
+        currentpiece = queue[0]
+        queue.pop(0)
+        bag = deepcopy(ogbag)
+        while(len(queue) < 5):
+                queue.append(piecepick())
         window.destroy()
         root.quit()
+        drawallpieces()
 
     # Bind Enter key to set_value function
     textbox.bind('<Return>', lambda event: set_value())
@@ -873,7 +1649,7 @@ def set_hold():
     # Function to set the variable and close the window
     def set_value():
         global holdpiece
-        clearscreen(-3, -3, 6, 3)
+        clearscreen(-6, -3, 6, 3)
         if(textbox.get() == ""):
             holdpiece = ""
         else:
@@ -890,44 +1666,75 @@ def set_hold():
 
     window.mainloop()  # Start the tkinter event loop
 
-lastcommand = "No command yet"
+lastcommand = "QwQtris - not a ripoff of anything QwQ"
 
 #submission box jumping point
-ezsfinderboxx = -4
-helpbuttonboxx = boardlength + 10
+ezsfinderboxx = boardlength + 8
+helpbuttonboxx = boardlength + 8
+fumenbuttonboxx = boardlength + 40
 ezsfindervariables = [
 ["Chance", ezsfinderboxx, 0, RED, "chance"],
 ["Minimals", ezsfinderboxx, 2, BLUE, "minimals"],
 ["T-Spin Minimals", ezsfinderboxx, 4, RED, "t_spin_minimals"],
 ["Tetris Minimals", ezsfinderboxx, 6, BLUE, "tetris_minimals"],
-["Score", ezsfinderboxx, 8, RED, "get_score"],
-["PC finder", helpbuttonboxx, 10, RED, "pc_finder"]
+["Score", ezsfinderboxx, 8, RED, "get_score"]
 ]
 
-textboxx = 20
+helpvariables = [
+["Pure PC save", helpbuttonboxx, 0, BLUE, "pc_finder"],
+["DPC save", helpbuttonboxx, 2, BLUE, "dpc_save_finder"],
+[":cat: solve", helpbuttonboxx, 4, BLUE, "cat_finder"]
+]
+
+if(loadsetups):
+    helpvariables.append(["Setup Finder", helpbuttonboxx + 4, 0, MAGENTA, "setup_finder"])
+    helpvariables.append(["DPC Finder", helpbuttonboxx + 4, 2, MAGENTA, "dpc_finder"])
+
+textboxx = 22
 textvariables = [
 ["Set fed queue", textboxx, 0, ORANGE, "sfinder_fed_queue"],
 ["Set clear", textboxx, 2, CYAN, "clear"],
 ["Initial Combo", textboxx, 4, ORANGE, "initial_combo"],
-["B2B Bonus", textboxx, 6, CYAN, "b2b_end_bonus"]
+["B2B Bonus", textboxx, 6, CYAN, "b2b_end_bonus"],
+["Load fumen", textboxx, 8, ORANGE, "loadfumen"]
 ]
 
-truefalsex = 30
+settingvariables = [
+["Set fed queue", textboxx, 0, ORANGE, "sfinder_fed_queue"]
+]
+
+truefalsex = 18
 truevariables = [
-["Initial b2b", truefalsex, 0, initial_b2b],
+["Initial b2b", truefalsex, -2, initial_b2b],
+]
+
+menubuttonx = 22
+menuvariables = [
+["Help Tools", menubuttonx, 12, RED],
+["Research", menubuttonx, 14, BLUE],
+["Settings", menubuttonx, 16, RED],
+]
+
+settingvariablesx = 18
+settingvariables = [
+["DAS", settingvariablesx, 0, ORANGE, "das"],
+["ARR", settingvariablesx, 2, BLUE, "arr"],
+["SDL", settingvariablesx, 4, ORANGE, "softdropdelay"],
+["SDS", settingvariablesx, 6, BLUE, "softdropspeed"],
+]
+
+settingtruevariables = [
+["Setup Finder", settingvariablesx + 1, 10, loadsetups],
 ]
 
 def drawlastcommand():
     global textboxx
-    x = 14
-    y = 13
-    font = pygame.font.SysFont(None, 24)
-    pytext = font.render(lastcommand, True, (255, 255, 255))
-    textwidth = pytext.get_width()
-    textheight = pytext.get_height()
+    x = -5
+    y = 16
+    pytext = normalfont.render(lastcommand, True, (255, 255, 255))
     block = pygame.Rect(startx + (x * blocksize), starty + (y * blocksize), 20 * blocksize, 2 * blocksize)
     pygame.draw.rect(s, RESET, block)
-    s.blit(pytext, (startx + (x * blocksize) + (1.5 * blocksize), starty + (y * blocksize) + (1 *  blocksize) - textheight/2 + 16, blocksize, blocksize))
+    s.blit(pytext, (startx + (x * blocksize), starty + (y * blocksize), blocksize, blocksize))
 
 def clearscreen(x, y, width, height):
     block = pygame.Rect(startx + (x * blocksize), starty + (y * blocksize), width * blocksize, height * blocksize)
@@ -935,10 +1742,32 @@ def clearscreen(x, y, width, height):
 
 def drawallpieces():
     global board, lastdrawn
-    clearscreen(0, 0, boardlength + 6, boardheight)
-    createtruefalse()
-    drawlastcommand()
+    clearscreen(0, 0, boardlength + 6, boardheight + 2)
+    clearscreen(0, -1, 2, 1)
     drawghostpiece()
+    drawlastcommand()
+
+    statx = -5
+    staty = 5
+    statincrement = 0.8
+    statsize = blocksize//4
+
+    clearscreen(statx, 5, staty, 10)
+    stattext(statx, staty + statincrement, f"Score", statsize)
+    stattext(statx, staty + statincrement * 2, "0" * max(8 - len(str(score)), 0) + str(score), statsize)
+
+    stattext(statx, staty + statincrement * 3, f"PPB", statsize)
+    if(piecesplaced == 0):
+        stattext(statx, staty + statincrement * 4, "0", statsize)
+    else:
+        stattext(statx, staty + statincrement * 4, str(round(score/piecesplaced, 2)) + "0" * max(8 - len(str(round(score/piecesplaced, 2))), 0), statsize)
+    stattext(statx, staty + statincrement * 5, f"Pieces Placed", statsize)
+    stattext(statx, staty + statincrement * 6, "0" * max(8 - len(str(piecesplaced)), 0) + str(piecesplaced), statsize)
+    stattext(statx, staty + statincrement * 7, f"Chain PCs", statsize)
+    stattext(statx, staty + statincrement * 8, "0" * max(8 - len(str(consecutivepcs)), 0) + str(consecutivepcs), statsize)
+    stattext(statx, staty + statincrement * 9, f"Chain B2B", statsize)
+    stattext(statx, staty + statincrement * 10, "0" * max(8 - len(str(consecutiveb2bs)), 0) + str(consecutiveb2bs), statsize)
+    #stattext(statx, staty + statincrement * 8, "0" * max(8 -len(str((piecesplaced * 5 % 7) + 1)), 0) + str((piecesplaced * 5 % 7) + 1), statsize)
 
     if(visualizeboard != ""):
         drawvisualizer(visualizeboard)
@@ -970,7 +1799,10 @@ def drawqueue():
             drawinfopieces(pieceindex * 3, boardlength + 1 + (4 - len(pieces[piece]["shape"][0])), piece)
 
 def reset():
-    global holdpiece, currentpiece, queue, currentpiecerotation, currentpiecex, currentpiecey, nopieceboard, board, bag, score
+    global holdpiece, currentpiece, queue, currentpiecerotation, currentpiecex, currentpiecey, nopieceboard, board, bag, score, piecesplaced, startingseed, visualizeboard, consecutivepcs, consecutiveb2bs
+
+    startingseed = randint(0, 100000)
+
     bag = deepcopy(ogbag)
     currentpiece = piecepick()
     queue = [piecepick() for i in range(5)]
@@ -979,14 +1811,19 @@ def reset():
     currentpiecey = 0
     score = 0
     combocount = 0
+    piecesplaced = 0
     nopieceboard = [[defaultboardcharacter for idea in range(boardlength)] for i in range(boardheight)]
     board = deepcopy(nopieceboard)
     holdpiece = ""
-    clearscreen(-3, -3, 6, 3)
+    clearscreen(-6, -3, 6, 3)
     drawallpieces()
+    savestate()
+    visualizeboard = ""
+    undooffset = 0
+    consecutivepcs = 0
+    consecutiveb2bs = 0
 
 putpiece(currentpiece, currentpiecerotation, currentpiecex, currentpiecey)
-loadfumen(fumentoload)
 drawallpieces()
 
 dastimer = 0
@@ -995,15 +1832,21 @@ softdroptimer = 0
 dohold = {
 "move_left" : {
     "timer" : "dastimer",
-    "delay" : "das"
+    "delay" : "das",
+    "between" : "arr",
+    "lastmove" : 0
 },
 "move_right" : {
     "timer" : "dastimer",
-    "delay" : "das"
+    "delay" : "das",
+    "between" : "arr",
+    "lastmove" : 0
 },
 "softdrop" : {
     "timer" : "softdroptimer",
-    "delay" : "softdropdelay"
+    "delay" : "softdropdelay",
+    "between" : "softdropspeed",
+    "lastmove" : 0
 },
 }
 
@@ -1015,6 +1858,8 @@ def outputcode():
         for piece in row:
             if(piece == defaultboardcharacter):
                 temp += "_"
+            elif(piece == "G"):
+                temp += "X"
             else:
                 temp += piece
     system(f"node encode.js {temp} > ezsfinder.txt")
@@ -1026,22 +1871,48 @@ keyspressed = []
 clock = pygame.time.Clock()
 
 # Set the font for the fps display
-font = pygame.font.SysFont('Arial', 30)
+font = pygame.font.Font(f'fonts\ComicMono.ttf',30)
+menu = 0
 
-createsettextboxes()
-createsfinderboxes()
+def createmenu():
+    clearscreen(17.5, -4, 8.5, 16)
+    if(menu == 1):
+        createsfinderboxes()
+        createsettextboxes()
+        createtruefalse()
+
+    elif(menu == 0):
+        createhelpboxes()
+
+    elif(menu == 2):
+        createsettingboxes()
+        createcontrolboxes()
+        settingtruefalse()
+
+createmenu()
+
 createcolorsquares()
+createmenuboxes()
 setqueuebutton()
 setheldpiece()
-drawvisualizer("v115@JhA8IeA8DeB8BeC8AeE8JeAgH")
+savestate()
+
+tap = False
 
 while running:
+    presseddown = pygame.key.get_pressed()
     for key in controls:
-        if(keyboard.is_pressed(key)):
+        if(presseddown[key]):
             if(key in keyspressed):
                 if(controls[key] in dohold):
-                    if(eval(f"time.time() * 1000 > {dohold[controls[key]]['timer']} + {dohold[controls[key]]['delay']}")):
-                        exec(f"{controls[key]}()")
+                    if(eval(f"time.time() * 1000 > int({dohold[controls[key]]['timer']}) + int({dohold[controls[key]]['delay']})")):
+                        if(eval(dohold[controls[key]]['between']) == 0):
+                            exec(f"{controls[key]}_das()")
+                        else:
+                            if(eval(f"time.time() * 1000 > int({dohold[controls[key]]['lastmove']}) + int({dohold[controls[key]]['between']})")):
+                                dohold[controls[key]]['lastmove'] = time.time() * 1000
+                                exec(f"{controls[key]}()")
+
                         drawallpieces()
             else:
                 exec(f"{controls[key]}()")
@@ -1053,59 +1924,89 @@ while running:
             if(key in keyspressed):
                 keyspressed.remove(key)
 
-    for event in pygame.event.get():
-        if pygame.mouse.get_pressed()[0]:
-            fumen = outputcode()
-            pos = list(pygame.mouse.get_pos())
-            pos[0] = (pos[0] - startx) // blocksize
-            pos[1] = (pos[1] - starty) // blocksize
+    if pygame.mouse.get_pressed()[0]:
+        pos = list(pygame.mouse.get_pos())
+        pos[0] = (pos[0] - startx) // blocksize
+        pos[1] = (pos[1] - starty) // blocksize
 
-            if(pos[0] >= 0 and pos[0] < boardlength and pos[1] >= 0 and pos[1] < boardheight):
-                nopieceboard[pos[1]][pos[0]] = tetrominoes[piece]
+        if(pos[0] >= 0 and pos[0] < boardlength and pos[1] >= 0 and pos[1] < boardheight):
+            nopieceboard[pos[1]][pos[0]] = tetrominoes[piece]
 
-            if(pos[0] == boardlength + xlocation and pos[1] >= 0 and pos[1] < len(pieces)):
-                piece = pos[1]
+        if(pos[0] == boardlength + xlocation and pos[1] >= 0 and pos[1] < len(pieces)):
+            piece = pos[1]
 
-            if(pos[0] == boardlength + xlocation and pos[1] >= 0 and pos[1] == len(pieces) + 4):
-                print(outputcode())
-
+        if(menu == 1):
             for box in textvariables:
                 if(pos[0] >= box[1] and pos[0] <= box[1] + 3 and pos[1] >= box[2] and pos[1] <= box[2] + 1):
                     set_variable(box[4])
 
             for box in ezsfindervariables:
                 if(pos[0] >= box[1] and pos[0] <= box[1] + 3 and pos[1] >= box[2] and pos[1] <= box[2] + 1):
+                    fumen = outputcode()
                     exec(f"{box[4]}()")
 
-            for box in truevariables:
-                if(pos[0] >= box[1] and pos[0] <= box[1] + 1 and pos[1] == box[2]):
-                    box[3] = not box[3]
-                    createtruefalse()
+            if(not tap):
+                for box in truevariables:
+                    if(pos[0] >= box[1] and pos[0] <= box[1] + 1 and pos[1] == box[2]):
+                        box[3] = not box[3]
+                        initial_b2b = not initial_b2b
+                        createtruefalse()
 
-            if(pos[0] >= boardlength + 2 and pos[0] <= boardlength + 5 and pos[1] >= -2 and pos[1] <= -1):
-                set_queue()
+        for boxindex, box in enumerate(menuvariables):
+            if(pos[0] >= box[1] and pos[0] <= box[1] + 3 and pos[1] >= box[2] and pos[1] <= box[2] + 1):
+                menu = boxindex
+                createmenu()
 
-            if(pos[0] >= -4 and pos[0] <= -1 and pos[1] >= -5 and pos[1] <= -4):
-                set_hold()
+        if(menu == 0):
+            for box in helpvariables:
+                if(pos[0] >= box[1] and pos[0] <= box[1] + 3 and pos[1] >= box[2] and pos[1] <= box[2] + 1):
+                    fumen = outputcode()
+                    exec(f"{box[4]}()")
 
-            if(pos[0] >= boardlength + 6 and pos[0] <= boardlength + 9 and pos[1] >= len(tetrominoes) + 2 and pos[1] <= len(tetrominoes) + 3):
-                grayoutboard()
+        if(pos[0] >= boardlength + 2 and pos[0] <= boardlength + 5 and pos[1] >= -2 and pos[1] <= -1):
+            set_queue()
+
+        if(pos[0] >= -4 and pos[0] <= -1 and pos[1] >= -5 and pos[1] <= -4):
+            set_hold()
+
+        if(menu == 2):
+            for box in settingvariables:
+                if(pos[0] >= box[1] and pos[0] <= box[1] + 3 and pos[1] >= box[2] and pos[1] <= box[2] + 1):
+                    set_variable(box[4])
+
+            if(pos[0] >= 22 and pos[0] <= 26 and pos[1] >= 0 and pos[1] < boardheight):
+                for iindex, i in enumerate(controls):
+                    if(controls[i] == controlslist[pos[1]]):
+                        save_key_input(i)
+                        break
+
+            if(not tap):
+                for box in settingtruevariables:
+                    if(pos[0] >= box[1] and pos[0] <= box[1] + 1 and pos[1] == box[2]):
+                        loadsetups = not loadsetups
+                        box[3] = not box[3]
+                        settingtruefalse()
+
+        drawallpieces()
+        tap = True
+
+    else:
+        tap = False
+
+    if pygame.mouse.get_pressed()[2]:
+        pos = list(pygame.mouse.get_pos())
+        pos[0] = (pos[0] - startx) // blocksize
+        pos[1] = (pos[1] - starty) // blocksize
+
+        if(pos[0] >= 0 and pos[0] < boardlength and pos[1] >= 0 and pos[1] < boardheight):
+            nopieceboard[pos[1]][pos[0]] = defaultboardcharacter
 
         drawallpieces()
 
+    for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            savecontrols()
             running = False
 
-    fps = int(clock.get_fps())
-
-    # Render the fps text
-    fps_text = font.render("FPS: {}".format(fps), True, (255, 255, 255))
-
-    # Draw the fps text to the screen
-    block = pygame.Rect(0, 0, 130, 40)
-    pygame.draw.rect(s, RESET, block, blocksize - 1)
-    s.blit(fps_text, (10, 10))
-
     # Tick the clock
-    clock.tick(1000)
     pygame.display.update()
