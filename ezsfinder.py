@@ -8,7 +8,7 @@ def system(command):
         print(command)
     ossystem(command)
 
-commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "second_stats", "setup_stats", "all_setups", "help"]
+commands = ["chance", "fail_queues", "fail-queues", "minimals", "score", "special_minimals", "special-minimals", "second_stats", "setup_stats", "all_setups", "help", "debug"]
 for i in commands:
     f = open(i, "w")
     f.close()
@@ -22,6 +22,10 @@ dpcscores = {
   "J": 4255.94,
   "T": 4135.55
 }
+
+def debug():
+    global debug
+    debug = not debug
 
 def ezhelp():
     if(len(argv) < 3):
@@ -129,8 +133,9 @@ def fail_queues():
             doprint = True
 
 def minimals():
-    system("java -jar sfinder.jar path -f csv -k pattern --tetfu %s --patterns %s --clear %s -K kicks/jstris180.properties -d 180> ezsfinder.txt" % (fumen, queue, clear))
-    system('py sfinder-saves.py filter -w "%s" -p "%s"' % (saves, queue))
+    system(f"java -jar sfinder.jar path -f csv -k pattern --tetfu {fumen} --patterns {queue} --clear {clear} -K kicks/jstris180.properties -d 180> ezsfinder.txt")
+    system("sfinder-minimal output/path.csv > ezsfinder.txt")
+    system("py true_minimal.py")
 
 def score():
     system(f"java -jar sfinder.jar path -t {fumen} -p {queue} --clear {clear} --hold avoid -split yes -f csv -k pattern -o output/path.csv -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
@@ -152,12 +157,13 @@ def score():
     #print(savechances)
 
 def special_minimals():
-    system("java -jar sfinder.jar path -t %s -p %s --clear %s -K kicks/jstris180.properties -d 180> ezsfinder.txt" % (fumen, queue, clear))
+    system(f"java -jar sfinder.jar path -t {fumen} -p {queue} --clear {clear} -K kicks/jstris180.properties -d 180 > ezsfinder.txt")
     with open('output/path_unique.html', encoding = "utf-8") as f:
         html = f.read()
     soup = BeautifulSoup(html, 'html.parser')
     allfumen = soup.find('a')['href']
-    system(f"node glueFumens.js --fu {allfumen} > input/field.txt")
+    allfumen = allfumen.replace("http://fumen.zui.jp/?", "")
+    system(f"node glueFumens.js {allfumen} > input/field.txt")
     system(f"java -jar sfinder.jar cover -p {queue} -M {minimal_type} -K kicks/jstris180.properties -d 180> ezsfinder.txt")
     system("cover-to-path.py > ezsfinder.txt")
     system("sfinder-minimal output/cover_to_path.csv> ezsfinder.txt")
@@ -175,7 +181,7 @@ def setup_stats():
     else:
         fumens = cover_fumens.split()
         for v, i in enumerate(fumens):
-            system(f"node glueFumens.js --fu {i} > ezsfinder.txt")
+            system(f"node glueFumens.js {i} > ezsfinder.txt")
             fumens[v] = open("ezsfinder.txt").read()[:-1]
 
     covers = []
@@ -183,7 +189,7 @@ def setup_stats():
     allfumens = ""
     for indfumen in fumens:
         allfumens += indfumen + " "
-        system(f"java -jar sfinder.jar cover --hold use -t {indfumen} -p {queue} -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
+        system(f"java -jar sfinder.jar cover --hold use -t {indfumen} -p {queue} --mode {mode} -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
         coveredfumen = open("ezsfinder.txt").read().splitlines()
         for line in coveredfumen:
             if("OR") in line:
@@ -203,12 +209,15 @@ def setup_stats():
                     fumenandscores.append([unglued, list(score)[1]])
                 print("")
 
-    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} > ezsfinder.txt -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
+    system(f"java -jar sfinder.jar cover -t {allfumens} -p {queue} --mode {mode} > ezsfinder.txt -K kicks/jstris180.properties -d 180 -M {mode}> ezsfinder.txt")
     coveredfumens = open("ezsfinder.txt").read().splitlines()
     for line in coveredfumens:
         if("OR") in line:
             fumencoverage = line.split("OR  = ")[1]
             print(f"Combined, they have {fumencoverage} coverage")
+
+    fumenandscores[0][1] += 400
+    print(fumenandscores)
 
     useable = [0 for i in range(len(fumenandscores))]
     nocover = 0
@@ -216,6 +225,7 @@ def setup_stats():
     slist.sort(key=lambda x: int(x[1]) * -1)
     scoreindex = [fumenandscores.index(i) for i in slist]
     allcover = [i.split(",")[1:] for i in open("output/cover.csv").read().splitlines()[1:]]
+
     for covervalue in allcover:
         for coverindex in scoreindex:
             if(covervalue[coverindex] == "O"):
